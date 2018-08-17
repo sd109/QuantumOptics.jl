@@ -40,7 +40,7 @@ function schroedinger(tspan, psi0::Ket, H::Operator, Hs::Vector;
     tspan_ = convert(Vector{Float64}, tspan)
 
     n = length(Hs)
-    dstate = copy(psi0)
+    dstate = [copy(psi0) for i=1:n]
     x0 = psi0.data
     state = copy(psi0)
 
@@ -51,7 +51,7 @@ function schroedinger(tspan, psi0::Ket, H::Operator, Hs::Vector;
 
     dschroedinger_determ(t::Float64, psi::Ket, dpsi::Ket) = dschroedinger(psi, H, dpsi)
     dschroedinger_stoch(dx::DiffArray,
-            t::Float64, psi::Ket, dpsi::Ket, n::Int) = dschroedinger_stochastic(dx, psi, Hs, dpsi, n)
+            t::Float64, psi::Ket, dpsi::Vector{Ket}, n::Int) = dschroedinger_stochastic(dx, psi, Hs, dpsi, n)
 
     if normalize_state
         norm_func(u::Vector{ComplexF64}, t::Float64, integrator) = normalize!(u)
@@ -131,19 +131,13 @@ function schroedinger_dynamic(tspan, psi0::Ket, fdeterm::Function, fstoch::Funct
             kwargs...)
 end
 
-
-function dschroedinger_stochastic(dx::Vector{ComplexF64}, psi::Ket, Hs::Vector{T},
-            dpsi::Ket, index::Int) where T <: Operator
-    recast!(dx, dpsi)
-    dschroedinger(psi, Hs[index], dpsi)
-end
-function dschroedinger_stochastic(dx::Array{ComplexF64, 2}, psi::Ket, Hs::Vector{T},
-            dpsi::Ket, n::Int) where T <: Operator
+function dschroedinger_stochastic(dx::DiffArray, psi::Ket, Hs::Vector{T},
+            dpsi::Vector{Ket}, n::Int) where T <: Operator
     for i=1:n
         dx_i = @view dx[:, i]
-        recast!(dx_i, dpsi)
-        dschroedinger(psi, Hs[i], dpsi)
-        recast!(dpsi, dx_i)
+        dpsi_i = dpsi[i]
+        recast!(dx_i, dpsi_i)
+        dschroedinger(psi, Hs[i], dpsi_i)
     end
 end
 function dschroedinger_stochastic(dx::DiffArray,

@@ -29,7 +29,7 @@ Ntraj = 100
 for i=1:Ntraj
     t, ψt = stochastic.schroedinger(T, ψ0, H, Hs; dt=dt,
         alg=StochasticDiffEq.EulerHeun())
-    ρ_avg += dm.(ψt)./Ntraj
+    ρ_avg .+= dm.(ψt)./Ntraj
 end
 tout, ρt = timeevolution.master(T, ρ0, H, [sz]; rates=[0.25γ^2])
 

@@ -98,7 +98,7 @@ end
 Integrate using StochasticDiffEq
 """
 function integrate_stoch(tspan::Vector{Float64}, df::Function, dg::Function, x0::Vector{ComplexF64},
-            state::T, dstate::T, fout::Function, n::Int;
+            state::T, dstate::Vector{T}, fout::Function, n::Int;
             save_everystep = false, callback=nothing,
             alg::StochasticDiffEq.StochasticDiffEqAlgorithm=StochasticDiffEq.EM(),
             noise_rate_prototype = nothing,
@@ -109,9 +109,9 @@ function integrate_stoch(tspan::Vector{Float64}, df::Function, dg::Function, x0:
 
     function df_(dx::Vector{ComplexF64}, x::Vector{ComplexF64}, p, t)
         recast!(x, state)
-        recast!(dx, dstate)
-        df(t, state, dstate)
-        recast!(dstate, dx)
+        recast!(dx, dstate[1])
+        df(t, state, dstate[1])
+        recast!(dstate[1], dx)
     end
 
     function dg_(dx::Union{Vector{ComplexF64}, Array{ComplexF64, 2}},
@@ -169,7 +169,7 @@ end
 Define fout if it was omitted.
 """
 function integrate_stoch(tspan::Vector{Float64}, df::Function, dg::Function, x0::Vector{ComplexF64},
-    state::T, dstate::T, ::Nothing, n::Int; kwargs...) where T
+    state::T, dstate::Vector{T}, ::Nothing, n::Int; kwargs...) where T
     function fout(t::Float64, state::T)
         copy(state)
     end
