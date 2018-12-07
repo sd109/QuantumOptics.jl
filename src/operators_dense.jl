@@ -2,7 +2,7 @@ module operators_dense
 
 export DenseOperator, dense, projector, dm
 
-import Base: ==, +, -, *, /
+import Base: ==, +, -, *, /, Broadcast
 import ..operators
 
 using LinearAlgebra, Base.Cartesian
@@ -16,7 +16,7 @@ Dense array implementation of Operator.
 
 The matrix consisting of complex floats is stored in the `data` field.
 """
-mutable struct DenseOperator{BL<:Basis,BR<:Basis,T<:Matrix{ComplexF64}} <: AbstractOperator{BL,BR}
+mutable struct DenseOperator{BL<:Basis,BR<:Basis,T<:Matrix{ComplexF64}} <: DataOperator{BL,BR}
     basis_l::BL
     basis_r::BR
     data::Matrix{ComplexF64}
@@ -37,7 +37,28 @@ DenseOperator{B1,B2}(b1::B1, b2::B2) where {B1<:Basis,B2<:Basis} = DenseOperator
 DenseOperator(b::Basis) = DenseOperator(b, b)
 DenseOperator(op::AbstractOperator) = dense(op)
 
-Base.copy(x::DenseOperator) = DenseOperator(x.basis_l, x.basis_r, copy(x.data))
+Base.copy(x::T) where T<:DataOperator = T(x.basis_l, x.basis_r, copy(x.data))
+
+# Broadcasting
+Base.size(A::DataOperator) = size(A.data)
+Base.axes(A::DataOperator) = axes(A.data)
+
+function Base.copyto!(dest::DataOperator{BL,BR}, bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {BL<:Basis,BR<:Basis,Style,Axes,F,Args<:Tuple{Vararg{Base.RefValue{<:DataOperator{BL,BR}}}}}
+    axes(dest) == axes(bc) || Base.Broadcast.throwdm(axes(dest), axes(bc))
+    # Performance optimization: broadcast!(identity, dest, A) is equivalent to copyto!(dest, A) if indices match
+    if bc.f === identity && isa(bc.args, Tuple{Base.RefValue{<:DataOperator{BL,BR}}}) # only a single input argument to broadcast!
+        A = bc.args[1][]
+        if axes(dest) == axes(A)
+            return copyto!(dest, A)
+        end
+    end
+    args_ = Tuple(a[].data for a=bc.args)
+    bc_ = Broadcast.Broadcasted(bc.f, args_, axes(bc))
+    copyto!(dest.data, bc_)
+    return dest
+end
+
+Base.copyto!(A::DataOperator{BL,BR},B::DataOperator{BL,BR}) where {BL<:Basis,BR<:Basis} = (copyto!(A.data,B.data); A)
 
 """
     dense(op::AbstractOperator)

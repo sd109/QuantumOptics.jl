@@ -1,6 +1,6 @@
 module operators
 
-export AbstractOperator, length, basis, dagger, ishermitian, tensor, embed,
+export AbstractOperator, DataOperator, length, basis, dagger, ishermitian, tensor, embed,
         tr, ptrace, normalize, normalize!, expect, variance,
         exp, permutesystems, identityoperator, dense
 
@@ -26,6 +26,16 @@ terms of this function and are provided automatically.
 """
 abstract type AbstractOperator{BL<:Basis,BR<:Basis} end
 
+"""
+Abstract type for operators with a data field.
+
+This is an abstract type for operators that have a direct matrix representation
+stored in their `.data` field.
+
+Type hierarchy: `DataOperator <: AbstractOperator`
+"""
+abstract type DataOperator{BL<:Basis,BR<:Basis} <: AbstractOperator{BL,BR} end
+
 
 # Common error messages
 arithmetic_unary_error(funcname, x::AbstractOperator) = throw(ArgumentError("$funcname is not defined for this type of operator: $(typeof(x)).\nTry to convert to another operator type first with e.g. dense() or sparse()."))
@@ -34,6 +44,9 @@ addnumbererror() = throw(ArgumentError("Can't add or subtract a number and an op
 
 length(a::AbstractOperator) = length(a.basis_l)::Int*length(a.basis_r)::Int
 basis(a::AbstractOperator) = (check_samebases(a); a.basis_l)
+
+# Ensure scalar broadcasting
+Base.broadcastable(x::AbstractOperator) = Ref(x)
 
 # Arithmetic operations
 +(a::AbstractOperator, b::AbstractOperator) = arithmetic_binary_error("Addition", a, b)

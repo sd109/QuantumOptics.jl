@@ -2,7 +2,7 @@ module operators_sparse
 
 export SparseOperator, diagonaloperator
 
-import Base: ==, *, /, +, -
+import Base: ==, *, /, +, -, Broadcast
 import ..operators
 import SparseArrays: sparse
 
@@ -18,7 +18,7 @@ Sparse array implementation of Operator.
 The matrix is stored as the julia built-in type `SparseMatrixCSC`
 in the `data` field.
 """
-mutable struct SparseOperator{BL<:Basis,BR<:Basis,T<:SparseMatrixCSC{ComplexF64,Int}} <: AbstractOperator{BL,BR}
+mutable struct SparseOperator{BL<:Basis,BR<:Basis,T<:SparseMatrixCSC{ComplexF64,Int}} <: DataOperator{BL,BR}
     basis_l::BL
     basis_r::BR
     data::T
