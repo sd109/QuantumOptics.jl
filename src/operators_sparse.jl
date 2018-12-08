@@ -4,6 +4,7 @@ export SparseOperator, diagonaloperator
 
 import Base: ==, *, /, +, -, Broadcast
 import ..operators
+import ..operators_dense: DataOperatorStyle, DenseOperatorStyle, find_bases
 import SparseArrays: sparse
 
 using ..bases, ..states, ..operators, ..operators_dense, ..sparsematrix
@@ -148,5 +149,20 @@ operators.gemm!(alpha, M::SparseOperator{B1,B2}, b::DenseOperator{B2,B3}, beta, 
 operators.gemm!(alpha, a::DenseOperator{B1,B2}, M::SparseOperator{B2,B3}, beta, result::DenseOperator{B1,B3}) where {B1<:Basis,B2<:Basis,B3<:Basis} = sparsematrix.gemm!(convert(ComplexF64, alpha), a.data, M.data, convert(ComplexF64, beta), result.data)
 operators.gemv!(alpha, M::SparseOperator{B1,B2}, b::Ket{B2}, beta, result::Ket{B1}) where {B1<:Basis,B2<:Basis} = sparsematrix.gemv!(convert(ComplexF64, alpha), M.data, b.data, convert(ComplexF64, beta), result.data)
 operators.gemv!(alpha, b::Bra{B1}, M::SparseOperator{B1,B2}, beta, result::Bra{B2}) where {B1<:Basis,B2<:Basis} = sparsematrix.gemv!(convert(ComplexF64, alpha), b.data, M.data, convert(ComplexF64, beta), result.data)
+
+# Broadcasting
+struct SparseOperatorStyle{BL<:Basis,BR<:Basis} <: DataOperatorStyle{BL,BR} end
+Broadcast.BroadcastStyle(::Type{<:SparseOperator{BL,BR}}) where {BL<:Basis,BR<:Basis} = SparseOperatorStyle{BL,BR}()
+Broadcast.BroadcastStyle(::DenseOperatorStyle{B1,B2}, ::SparseOperatorStyle{B1,B2}) where {B1<:Basis,B2<:Basis} = DenseOperatorStyle{B1,B2}()
+Broadcast.BroadcastStyle(::DenseOperatorStyle{B1,B2}, ::SparseOperatorStyle{B3,B4}) where {B1<:Basis,B2<:Basis,B3<:Basis,B4<:Basis} = throw(bases.IncompatibleBases())
+Broadcast.BroadcastStyle(::SparseOperatorStyle{B1,B2}, ::SparseOperatorStyle{B3,B4}) where {B1<:Basis,B2<:Basis,B3<:Basis,B4<:Basis} = throw(bases.IncompatibleBases())
+
+function Base.copy(bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {BL<:Basis,BR<:Basis,Style<:SparseOperatorStyle{BL,BR},Axes,F,Args<:Tuple}
+    bcf = Broadcast.flatten(bc)
+    args_ = Tuple(isa(a, DataOperator{BL,BR}) ? a.data : a for a=bcf.args)
+    bl,br = find_bases(bcf.args)
+    bc_ = Broadcast.Broadcasted(bcf.f, args_, axes(bcf))
+    return SparseOperator{BL,BR}(bl, br, copy(bc_))
+end
 
 end # module
