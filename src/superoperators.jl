@@ -5,6 +5,7 @@ export SuperOperator, DenseSuperOperator, SparseSuperOperator,
 
 import Base: ==, *, /, +, -
 import ..bases
+import ..states
 import SparseArrays: sparse
 
 using ..bases, ..operators, ..operators_dense, ..operators_sparse
@@ -44,6 +45,7 @@ mutable struct DenseSuperOperator{B1<:Tuple{Basis,Basis},B2<:Tuple{Basis,Basis},
         new(basis_l, basis_r, data)
     end
 end
+DenseSuperOperator{BL,BR}(basis_l::BL, basis_r::BR, data::T) where {BL<:Tuple{Basis,Basis},BR<:Tuple{Basis,Basis},T<:Matrix{ComplexF64}} = DenseSuperOperator{BL,BR,T}(basis_l, basis_r, data)
 DenseSuperOperator(basis_l::BL, basis_r::BR, data::T) where {BL<:Tuple{Basis,Basis},BR<:Tuple{Basis,Basis},T<:Matrix{ComplexF64}} = DenseSuperOperator{BL,BR,T}(basis_l, basis_r, data)
 
 function DenseSuperOperator(basis_l::Tuple{Basis, Basis}, basis_r::Tuple{Basis, Basis})
@@ -221,5 +223,70 @@ end
 Operator exponential which can for example used to calculate time evolutions.
 """
 Base.exp(op::DenseSuperOperator) = DenseSuperOperator(op.basis_l, op.basis_r, exp(op.data))
+
+# Array-like functions
+Base.size(A::SuperOperator) = size(A.data)
+@inline Base.axes(A::SuperOperator) = axes(A.data)
+Base.ndims(A::SuperOperator) = 2
+Base.ndims(::Type{<:SuperOperator}) = 2
+
+# Broadcasting
+Base.broadcastable(A::SuperOperator) = A
+
+# Custom broadcasting styles
+abstract type SuperOperatorStyle{BL<:Tuple{Basis,Basis},BR<:Tuple{Basis,Basis}} <: Broadcast.BroadcastStyle end
+struct DenseSuperOperatorStyle{BL<:Tuple{Basis,Basis},BR<:Tuple{Basis,Basis}} <: SuperOperatorStyle{BL,BR} end
+struct SparseSuperOperatorStyle{BL<:Tuple{Basis,Basis},BR<:Tuple{Basis,Basis}} <: SuperOperatorStyle{BL,BR} end
+
+# Style precedence rules
+Broadcast.BroadcastStyle(::Type{<:DenseSuperOperator{BL,BR}}) where {BL<:Tuple{Basis,Basis},BR<:Tuple{Basis,Basis}} = DenseSuperOperatorStyle{BL,BR}()
+Broadcast.BroadcastStyle(::Type{<:SparseSuperOperator{BL,BR}}) where {BL<:Tuple{Basis,Basis},BR<:Tuple{Basis,Basis}} = SparseSuperOperatorStyle{BL,BR}()
+Broadcast.BroadcastStyle(::DenseSuperOperatorStyle{B1,B2}, ::SparseSuperOperatorStyle{B1,B2}) where {B1<:Tuple{Basis,Basis},B2<:Tuple{Basis,Basis}} = DenseSuperOperatorStyle{B1,B2}()
+Broadcast.BroadcastStyle(::DenseSuperOperatorStyle{B1,B2}, ::DenseSuperOperatorStyle{B3,B4}) where {B1<:Tuple{Basis,Basis},B2<:Tuple{Basis,Basis},B3<:Tuple{Basis,Basis},B4<:Tuple{Basis,Basis}} = throw(bases.IncompatibleBases())
+Broadcast.BroadcastStyle(::SparseSuperOperatorStyle{B1,B2}, ::SparseSuperOperatorStyle{B3,B4}) where {B1<:Tuple{Basis,Basis},B2<:Tuple{Basis,Basis},B3<:Tuple{Basis,Basis},B4<:Tuple{Basis,Basis}} = throw(bases.IncompatibleBases())
+Broadcast.BroadcastStyle(::DenseSuperOperatorStyle{B1,B2}, ::SparseSuperOperatorStyle{B3,B4}) where {B1<:Tuple{Basis,Basis},B2<:Tuple{Basis,Basis},B3<:Tuple{Basis,Basis},B4<:Tuple{Basis,Basis}} = throw(bases.IncompatibleBases())
+
+# Out-of-place broadcasting
+@inline function Base.copy(bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {BL<:Tuple{Basis,Basis},BR<:Tuple{Basis,Basis},Style<:DenseSuperOperatorStyle{BL,BR},Axes,F,Args<:Tuple}
+    bcf = Broadcast.flatten(bc)
+    args_ = Tuple(a.data for a=bcf.args)
+    bl,br = states.find_basis(bcf.args)
+    bc_ = Broadcast.Broadcasted(bcf.f, args_, axes(bcf))
+    # TODO: remove convert
+    return DenseSuperOperator{BL,BR}(bl, br, convert(Matrix{ComplexF64}, copy(bc_)))
+end
+@inline function Base.copy(bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {BL<:Tuple{Basis,Basis},BR<:Tuple{Basis,Basis},Style<:SparseSuperOperatorStyle{BL,BR},Axes,F,Args<:Tuple}
+    bcf = Broadcast.flatten(bc)
+    args_ = Tuple(a.data for a=bcf.args)
+    bl,br = states.find_basis(bcf.args)
+    bc_ = Broadcast.Broadcasted(bcf.f, args_, axes(bcf))
+    return SuperOperator{BL,BR}(bl, br, copy(bc_))
+end
+states.find_basis(a::SuperOperator, rest) = (a.basis_l, a.basis_r)
+
+# In-place broadcasting
+@inline function Base.copyto!(dest::SuperOperator{BL,BR}, bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {BL<:Tuple{Basis,Basis},BR<:Tuple{Basis,Basis},Style<:SuperOperatorStyle{BL,BR},Axes,F,Args}
+    axes(dest) == axes(bc) || Base.Broadcast.throwdm(axes(dest), axes(bc))
+    # Performance optimization: broadcast!(identity, dest, A) is equivalent to copyto!(dest, A) if indices match
+    if bc.f === identity && isa(bc.args, Tuple{<:SuperOperator{BL,BR}}) # only a single input argument to broadcast!
+        A = bc.args[1]
+        if axes(dest) == axes(A)
+            return copyto!(dest, A)
+        end
+    end
+    # Get the underlying data fields of operators and broadcast them as arrays
+    bcf = Broadcast.flatten(bc)
+    args_ = Tuple(a.data for a=bcf.args)
+    bc_ = Broadcast.Broadcasted(bcf.f, args_, axes(bcf))
+    copyto!(dest.data, bc_)
+    return dest
+end
+@inline Base.copyto!(A::SuperOperator{BL,BR},B::SuperOperator{BL,BR}) where {BL<:Tuple{Basis,Basis},BR<:Tuple{Basis,Basis}} = (copyto!(A.data,B.data); A)
+@inline function Base.copyto!(dest::SuperOperator{B1,B2}, bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {
+        B1<:Tuple{Basis,Basis},B2<:Tuple{Basis,Basis},B3<:Tuple{Basis,Basis},
+        B4<:Tuple{Basis,Basis},Style<:SuperOperatorStyle{B3,B4},Axes,F,Args
+        }
+    throw(bases.IncompatibleBases())
+end
 
 end # module

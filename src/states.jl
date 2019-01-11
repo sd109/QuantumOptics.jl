@@ -186,4 +186,87 @@ end
 
 samebases(a::T, b::T) where {T<:StateVector} = samebases(a.basis, b.basis)::Bool
 
+# Array-like functions
+Base.size(x::StateVector) = size(x.data)
+@inline Base.axes(x::StateVector) = axes(x.data)
+Base.ndims(x::StateVector) = 1
+Base.ndims(::Type{<:StateVector}) = 1
+
+# Broadcasting
+Base.broadcastable(x::StateVector) = x
+
+# Custom broadcasting style
+abstract type StateVectorStyle{B<:Basis} <: Broadcast.BroadcastStyle end
+struct KetStyle{B<:Basis} <: StateVectorStyle{B} end
+struct BraStyle{B<:Basis} <: StateVectorStyle{B} end
+
+# Style precedence rules
+Broadcast.BroadcastStyle(::Type{<:Ket{B}}) where {B<:Basis} = KetStyle{B}()
+Broadcast.BroadcastStyle(::Type{<:Bra{B}}) where {B<:Basis} = BraStyle{B}()
+Broadcast.BroadcastStyle(::KetStyle{B1}, ::KetStyle{B2}) where {B1<:Basis,B2<:Basis} = throw(bases.IncompatibleBases())
+Broadcast.BroadcastStyle(::BraStyle{B1}, ::BraStyle{B2}) where {B1<:Basis,B2<:Basis} = throw(bases.IncompatibleBases())
+
+# Out-of-place broadcasting
+@inline function Base.copy(bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {B<:Basis,Style<:KetStyle{B},Axes,F,Args<:Tuple}
+    bcf = Broadcast.flatten(bc)
+    args_ = Tuple(a.data for a=bcf.args)
+    bc_ = Broadcast.Broadcasted(bcf.f, args_, axes(bcf))
+    b = find_basis(bcf)
+    return Ket{B}(b, copy(bc_))
+end
+@inline function Base.copy(bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {B<:Basis,Style<:BraStyle{B},Axes,F,Args<:Tuple}
+    bcf = Broadcast.flatten(bc)
+    args_ = Tuple(a.data for a=bcf.args)
+    bc_ = Broadcast.Broadcasted(bcf.f, args_, axes(bcf))
+    b = find_basis(bcf)
+    return Bra{B}(b, copy(bc_))
+end
+find_basis(bc::Broadcast.Broadcasted) = find_basis(bc.args)
+find_basis(args::Tuple) = find_basis(find_basis(args[1]), Base.tail(args))
+find_basis(x) = x
+find_basis(a::StateVector, rest) = a.basis
+find_basis(::Any, rest) = find_basis(rest)
+
+# In-place broadcasting for Kets
+@inline function Base.copyto!(dest::Ket{B}, bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {B<:Basis,Style<:KetStyle{B},Axes,F,Args}
+    axes(dest) == axes(bc) || Base.Broadcast.throwdm(axes(dest), axes(bc))
+    # Performance optimization: broadcast!(identity, dest, A) is equivalent to copyto!(dest, A) if indices match
+    if bc.f === identity && isa(bc.args, Tuple{<:Ket{B}}) # only a single input argument to broadcast!
+        A = bc.args[1]
+        if axes(dest) == axes(A)
+            return copyto!(dest, A)
+        end
+    end
+    # Get the underlying data fields of kets and broadcast them as arrays
+    bcf = Broadcast.flatten(bc)
+    args_ = Tuple(a.data for a=bcf.args)
+    bc_ = Broadcast.Broadcasted(bcf.f, args_, axes(bcf))
+    copyto!(dest.data, bc_)
+    return dest
+end
+@inline Base.copyto!(dest::Ket{B1}, bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {B1<:Basis,B2<:Basis,Style<:KetStyle{B2},Axes,F,Args} =
+    throw(bases.IncompatibleBases())
+
+# In-place broadcasting for Bras
+@inline function Base.copyto!(dest::Bra{B}, bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {B<:Basis,Style<:BraStyle{B},Axes,F,Args}
+    axes(dest) == axes(bc) || Base.Broadcast.throwdm(axes(dest), axes(bc))
+    # Performance optimization: broadcast!(identity, dest, A) is equivalent to copyto!(dest, A) if indices match
+    if bc.f === identity && isa(bc.args, Tuple{<:Bra{B}}) # only a single input argument to broadcast!
+        A = bc.args[1]
+        if axes(dest) == axes(A)
+            return copyto!(dest, A)
+        end
+    end
+    # Get the underlying data fields of bras and broadcast them as arrays
+    bcf = Broadcast.flatten(bc)
+    args_ = Tuple(a.data for a=bcf.args)
+    bc_ = Broadcast.Broadcasted(bcf.f, args_, axes(bcf))
+    copyto!(dest.data, bc_)
+    return dest
+end
+@inline Base.copyto!(dest::Bra{B1}, bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {B1<:Basis,B2<:Basis,Style<:BraStyle{B2},Axes,F,Args} =
+    throw(bases.IncompatibleBases())
+
+@inline Base.copyto!(A::T,B::T) where T<:StateVector = (copyto!(A.data,B.data); A)
+
 end # module

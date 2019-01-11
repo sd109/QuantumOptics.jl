@@ -345,4 +345,17 @@ bnlevel = NLevelBasis(2)
 @test ishermitian(DenseOperator(bspin, bspin, [1.0 im; -im 2.0])) == true
 @test ishermitian(DenseOperator(bspin, bnlevel, [1.0 im; -im 2.0])) == false
 
+# Test broadcasting
+op1_ = copy(op1)
+op1 .= 2*op1
+@test op1 == op1_ .+ op1_
+op1 .= op1_
+@test op1 == op1_
+op1 .= op1_ .+ 3 * op1_
+@test op1 == 4*op1_
+@test_throws DimensionMismatch op1 .= op2
+bf = FockBasis(3)
+op3 = randoperator(bf)
+@test_throws bases.IncompatibleBases op1 .+ op3
+
 end # testset

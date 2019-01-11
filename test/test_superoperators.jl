@@ -1,6 +1,6 @@
 using Test
 using QuantumOptics
-using SparseArrays
+using SparseArrays, LinearAlgebra
 
 @testset "superoperators" begin
 
@@ -163,7 +163,7 @@ op2 = DenseOperator(spinbasis, [0.2+0.1im 0.1+2.3im; 0.8+4.0im 0.3+1.4im])
 L = liouvillian(H, J)
 ρ = -1im*(H*ρ₀ - ρ₀*H)
 for j=J
-    ρ += j*ρ₀*dagger(j) - 0.5*dagger(j)*j*ρ₀ - 0.5*ρ₀*dagger(j)*j
+    ρ .+= j*ρ₀*dagger(j) - 0.5*dagger(j)*j*ρ₀ - 0.5*ρ₀*dagger(j)*j
 end
 @test tracedistance(L*ρ₀, ρ) < 1e-10
 
@@ -179,5 +179,21 @@ tout, ρt = timeevolution.master([0.,1.], ρ₀, H, J; reltol=1e-7)
 
 rates = diagm(0 => [1.0, 1.0])
 @test liouvillian(H, J; rates=rates) == L
+
+# Test broadcasting
+@test L .+ L == L + L
+Ldense = dense(L)
+@test isa(L .+ Ldense, DenseSuperOperator)
+L_ = copy(L)
+L .+= L
+@test L == 2*L_
+L .+= Ldense
+@test L == 3*L_
+Ldense_ = dense(L_)
+Ldense .+= Ldense
+@test Ldense == 2*Ldense_
+Ldense .+= L
+@test isa(Ldense, DenseSuperOperator)
+@test isapprox(Ldense.data, 5*Ldense_.data)
 
 end # testset

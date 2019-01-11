@@ -4,7 +4,7 @@ export SparseOperator, diagonaloperator
 
 import Base: ==, *, /, +, -, Broadcast
 import ..operators
-import ..operators_dense: DataOperatorStyle, DenseOperatorStyle, find_bases
+import ..operators_dense: DataOperatorStyle, DenseOperatorStyle
 import SparseArrays: sparse
 
 using ..bases, ..states, ..operators, ..operators_dense, ..sparsematrix
@@ -157,10 +157,10 @@ Broadcast.BroadcastStyle(::DenseOperatorStyle{B1,B2}, ::SparseOperatorStyle{B1,B
 Broadcast.BroadcastStyle(::DenseOperatorStyle{B1,B2}, ::SparseOperatorStyle{B3,B4}) where {B1<:Basis,B2<:Basis,B3<:Basis,B4<:Basis} = throw(bases.IncompatibleBases())
 Broadcast.BroadcastStyle(::SparseOperatorStyle{B1,B2}, ::SparseOperatorStyle{B3,B4}) where {B1<:Basis,B2<:Basis,B3<:Basis,B4<:Basis} = throw(bases.IncompatibleBases())
 
-function Base.copy(bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {BL<:Basis,BR<:Basis,Style<:SparseOperatorStyle{BL,BR},Axes,F,Args<:Tuple}
+@inline function Base.copy(bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {BL<:Basis,BR<:Basis,Style<:SparseOperatorStyle{BL,BR},Axes,F,Args<:Tuple}
     bcf = Broadcast.flatten(bc)
-    args_ = Tuple(isa(a, DataOperator{BL,BR}) ? a.data : a for a=bcf.args)
-    bl,br = find_bases(bcf.args)
+    args_ = Tuple(a.data for a=bcf.args)
+    bl,br = states.find_basis(bcf.args)
     bc_ = Broadcast.Broadcasted(bcf.f, args_, axes(bcf))
     return SparseOperator{BL,BR}(bl, br, copy(bc_))
 end

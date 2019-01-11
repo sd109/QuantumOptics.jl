@@ -147,4 +147,19 @@ psi321 = psi3 ⊗ psi2 ⊗ psi1
 @test 1e-14 > D(dagger(psi312), permutesystems(dagger(psi123), [3, 1, 2]))
 @test 1e-14 > D(dagger(psi321), permutesystems(dagger(psi123), [3, 2, 1]))
 
+# Test Broadcasting
+@test_throws bases.IncompatibleBases psi123 .= psi132
+@test_throws bases.IncompatibleBases psi123 .+ psi132
+bra123 = dagger(psi123)
+bra132 = dagger(psi132)
+@test_throws ArgumentError psi123 .+ bra123
+@test_throws bases.IncompatibleBases bra123 .= bra132
+@test_throws bases.IncompatibleBases bra123 .+ bra132
+psi_ = copy(psi123)
+psi_ .+= psi123
+@test psi_ == 2*psi123
+bra_ = copy(bra123)
+bra_ .= 3*bra123
+@test bra_ == 3*dagger(psi123)
+
 end # testset

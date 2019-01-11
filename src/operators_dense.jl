@@ -302,7 +302,7 @@ end
 
 # Broadcasting
 Base.size(A::DataOperator) = size(A.data)
-Base.axes(A::DataOperator) = axes(A.data)
+@inline Base.axes(A::DataOperator) = axes(A.data)
 Base.broadcastable(A::DataOperator) = A
 
 # Custom broadcasting styles
@@ -311,26 +311,21 @@ struct DenseOperatorStyle{BL<:Basis,BR<:Basis} <: DataOperatorStyle{BL,BR} end
 
 # Style precedence rules
 Broadcast.BroadcastStyle(::Type{<:DenseOperator{BL,BR}}) where {BL<:Basis,BR<:Basis} = DenseOperatorStyle{BL,BR}()
-Broadcast.BroadcastStyle(::T, ::Broadcast.AbstractArrayStyle) where T<:DataOperatorStyle = T()
 Broadcast.BroadcastStyle(::DenseOperatorStyle{B1,B2}, ::DenseOperatorStyle{B3,B4}) where {B1<:Basis,B2<:Basis,B3<:Basis,B4<:Basis} = throw(bases.IncompatibleBases())
 
 # Out-of-place broadcasting
-function Base.copy(bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {BL<:Basis,BR<:Basis,Style<:DenseOperatorStyle{BL,BR},Axes,F,Args<:Tuple}
+@inline function Base.copy(bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {BL<:Basis,BR<:Basis,Style<:DenseOperatorStyle{BL,BR},Axes,F,Args<:Tuple}
     bcf = Broadcast.flatten(bc)
-    args_ = Tuple(isa(a, DataOperator{BL,BR}) ? a.data : a for a=bcf.args)
-    bl,br = find_bases(bcf.args)
+    args_ = Tuple(a.data for a=bcf.args)
+    bl,br = states.find_basis(bcf.args)
     bc_ = Broadcast.Broadcasted(bcf.f, args_, axes(bcf))
     # TODO: remove convert
     return DenseOperator{BL,BR}(bl, br, convert(Matrix{ComplexF64}, copy(bc_)))
 end
-find_bases(bc::Broadcast.Broadcasted) = find_bases(bc.args)
-find_bases(args::Tuple) = find_bases(find_bases(args[1]), Base.tail(args))
-find_bases(x) = x
-find_bases(a::DataOperator, rest) = (a.basis_l, a.basis_r)
-find_bases(::Any, rest) = find_bases(rest)
+states.find_basis(a::DataOperator, rest) = (a.basis_l, a.basis_r)
 
 # In-place broadcasting
-function Base.copyto!(dest::DataOperator{BL,BR}, bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {BL<:Basis,BR<:Basis,Style<:DataOperatorStyle{BL,BR},Axes,F,Args}
+@inline function Base.copyto!(dest::DataOperator{BL,BR}, bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {BL<:Basis,BR<:Basis,Style<:DataOperatorStyle{BL,BR},Axes,F,Args}
     axes(dest) == axes(bc) || Base.Broadcast.throwdm(axes(dest), axes(bc))
     # Performance optimization: broadcast!(identity, dest, A) is equivalent to copyto!(dest, A) if indices match
     if bc.f === identity && isa(bc.args, Tuple{<:DataOperator{BL,BR}}) # only a single input argument to broadcast!
@@ -341,11 +336,13 @@ function Base.copyto!(dest::DataOperator{BL,BR}, bc::Broadcast.Broadcasted{Style
     end
     # Get the underlying data fields of operators and broadcast them as arrays
     bcf = Broadcast.flatten(bc)
-    args_ = Tuple(isa(a, DataOperator{BL,BR}) ? a.data : a for a=bcf.args)
+    args_ = Tuple(a.data for a=bcf.args)
     bc_ = Broadcast.Broadcasted(bcf.f, args_, axes(bcf))
     copyto!(dest.data, bc_)
     return dest
 end
-Base.copyto!(A::DataOperator{BL,BR},B::DataOperator{BL,BR}) where {BL<:Basis,BR<:Basis} = (copyto!(A.data,B.data); A)
+@inline Base.copyto!(A::DataOperator{BL,BR},B::DataOperator{BL,BR}) where {BL<:Basis,BR<:Basis} = (copyto!(A.data,B.data); A)
+@inline Base.copyto!(dest::DataOperator{BL,BR}, bc::Broadcast.Broadcasted{Style,Axes,F,Args}) where {BL<:Basis,BR<:Basis,Style<:DataOperatorStyle,Axes,F,Args} =
+    throw(bases.IncompatibleBases())
 
 end # module
