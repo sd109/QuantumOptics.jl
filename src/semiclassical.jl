@@ -1,20 +1,20 @@
 module semiclassical
 
 import Base: ==
-import ..bases, ..operators, ..operators_dense
-import ..timeevolution: integrate, recast!, QO_CHECKS
-import ..timeevolution.timeevolution_mcwf: jump, integrate_mcwf, jump_callback, as_vector
-import LinearAlgebra: normalize, normalize!
+import QuantumOpticsBase: expect, variance, dm, ptrace
+import ..timeevolution: integrate, recast!, QO_CHECKS, pure_inference
+import ..timeevolution: jump
+import LinearAlgebra: normalize!
 
 using Random, LinearAlgebra
 import OrdinaryDiffEq
 
 # TODO: Remove imports
 import DiffEqCallbacks, RecursiveArrayTools.copyat_or_push!
-Base.@pure pure_inference(fout,T) = Core.Compiler.return_type(fout, T)
 
-using ..bases, ..states, ..operators, ..operators_dense, ..timeevolution
-
+using QuantumOpticsBase
+using QuantumOpticsBase: samebases
+using..timeevolution
 
 const QuantumState{B} = Union{Ket{B}, DenseOperator{B,B}}
 const DecayRates = Union{Nothing, Vector{Float64}, Matrix{Float64}}
@@ -36,7 +36,6 @@ end
 Base.length(state::State) = length(state.quantum) + length(state.classical)
 Base.copy(state::State) = State(copy(state.quantum), copy(state.classical))
 normalize!(state::State{B,T}) where {B,T<:Ket} = normalize!(state.quantum)
-normalize(state::T) where {B,K<:Ket,T<:State{B,K}} = State(normalize(state.quantum),copy(state.classical))
 
 function ==(a::State, b::State)
     samebases(a.quantum, b.quantum) &&
@@ -45,11 +44,11 @@ function ==(a::State, b::State)
     (a.quantum==b.quantum)
 end
 
-operators.expect(op, state::State) = expect(op, state.quantum)
-operators.variance(op, state::State) = variance(op, state.quantum)
-operators.ptrace(state::State, indices::Vector{Int}) = State(ptrace(state.quantum, indices), state.classical)
+expect(op, state::State) = expect(op, state.quantum)
+variance(op, state::State) = variance(op, state.quantum)
+ptrace(state::State, indices::Vector{Int}) = State(ptrace(state.quantum, indices), state.classical)
 
-operators_dense.dm(x::State{B,T}) where {B<:Basis,T<:Ket{B}} = State(dm(x.quantum), x.classical)
+dm(x::State{B,T}) where {B<:Basis,T<:Ket{B}} = State(dm(x.quantum), x.classical)
 
 
 """
@@ -141,13 +140,6 @@ Calculate MCWF trajectories coupled to a classical system.
 * `fout=nothing`: If given, this function `fout(t, state)` is called every time
         an output should be displayed. ATTENTION: The given state is not
         permanent!
-* `display_beforeevent`: Choose whether or not an additional point should be saved
-        before a jump occurs. Default is false.
-* `display_afterevent`: Choose whether or not an additional point should be saved
-        after a jump occurs. Default is false.
-* `display_jumps=false`: If set to true, an additional list of times and indices
-        is returned. These correspond to the times at which a jump occured and
-        the index of the jump operators with which the jump occured, respectively.
 * `kwargs...`: Further arguments are passed on to the ode solver.
 """
 function mcwf_dynamic(tspan, psi0::State{B,T}, fquantum, fclassical, fjump_classical;
@@ -184,21 +176,21 @@ end
 function dschroedinger_dynamic(t::Float64, state::State{B,T}, fquantum::Function,
             fclassical::Function, dstate::State{B,T}) where {B<:Basis,T<:Ket{B}}
     fquantum_(t, psi) = fquantum(t, state.quantum, state.classical)
-    timeevolution.timeevolution_schroedinger.dschroedinger_dynamic(t, state.quantum, fquantum_, dstate.quantum)
+    timeevolution.dschroedinger_dynamic(t, state.quantum, fquantum_, dstate.quantum)
     fclassical(t, state.quantum, state.classical, dstate.classical)
 end
 
 function dmaster_h_dynamic(t::Float64, state::State{B,T}, fquantum::Function,
             fclassical::Function, rates::DecayRates, dstate::State{B,T}, tmp::T) where {B<:Basis,T<:DenseOperator{B,B}}
     fquantum_(t, rho) = fquantum(t, state.quantum, state.classical)
-    timeevolution.timeevolution_master.dmaster_h_dynamic(t, state.quantum, fquantum_, rates, dstate.quantum, tmp)
+    timeevolution.dmaster_h_dynamic(t, state.quantum, fquantum_, rates, dstate.quantum, tmp)
     fclassical(t, state.quantum, state.classical, dstate.classical)
 end
 
 function dmcwf_h_dynamic(t::Float64, psi::T, fquantum::Function, fclassical::Function, rates::DecayRates,
                     dpsi::T, tmp::K) where {T,K}
     fquantum_(t, rho) = fquantum(t, psi.quantum, psi.classical)
-    timeevolution.timeevolution_mcwf.dmcwf_h_dynamic(t, psi.quantum, fquantum_, rates, dpsi.quantum, tmp)
+    timeevolution.dmcwf_h_dynamic(t, psi.quantum, fquantum_, rates, dpsi.quantum, tmp)
     fclassical(t, psi.quantum, psi.classical, dpsi.classical)
 end
 
@@ -214,38 +206,116 @@ function jump_dynamic(rng, t::Float64, psi::T, fquantum::Function, fclassical::F
     i = jump(rng, t, psi.quantum, J, psi_new.quantum, rates_)
     fjump_classical(t, psi_new.quantum, psi.classical, i)
     psi_new.classical .= psi.classical
-    return i
 end
 
-function jump_callback(jumpfun::Function, seed, scb, save_before!::Function,
-                        save_after!::Function, save_t_index::Function, psi0::State)
+function integrate_mcwf(dmcwf::Function, jumpfun::Function, tspan,
+                        psi0::T, seed, fout::Function;
+                        display_beforeevent=false, display_afterevent=false,
+                        #TODO: Remove kwargs
+                        save_everystep=false, callback=nothing,
+                        alg=OrdinaryDiffEq.DP5(),
+                        kwargs...) where {B<:Basis,T<:State}
+
     tmp = copy(psi0)
     psi_tmp = copy(psi0)
+    x0 = [psi0.quantum.data; psi0.classical]
     rng = MersenneTwister(convert(UInt, seed))
     jumpnorm = Ref(rand(rng))
     n = length(psi0.quantum)
     djumpnorm(x::Vector{ComplexF64}, t::Float64, integrator) = norm(x[1:n])^2 - (1-jumpnorm[])
 
-    function dojump(integrator)
-        x = integrator.u
-        t = integrator.t
+    if !display_beforeevent && !display_afterevent
+        function dojump(integrator)
+            x = integrator.u
+            recast!(x, psi_tmp)
+            t = integrator.t
+            jumpfun(rng, t, psi_tmp, tmp)
+            recast!(tmp, x)
+            jumpnorm[] = rand(rng)
+        end
+        cb = OrdinaryDiffEq.ContinuousCallback(djumpnorm,dojump,
+                         save_positions = (display_beforeevent,display_afterevent))
 
-        affect! = scb.affect!
-        save_before!(affect!,integrator)
-        recast!(x, psi_tmp)
-        i = jumpfun(rng, t, psi_tmp, tmp)
-        recast!(tmp, x)
-        save_after!(affect!,integrator)
-        save_t_index(t,i)
 
-        jumpnorm[] = rand(rng)
-        return nothing
+        timeevolution.integrate(float(tspan), dmcwf, x0,
+                    copy(psi0), copy(psi0), fout;
+                    callback = cb,
+                    kwargs...)
+    else
+        # Temporary workaround until proper tooling for saving
+        # TODO: Replace by proper call to timeevolution.integrate
+        function fout_(x::Vector{ComplexF64}, t::Float64, integrator)
+            recast!(x, state)
+            fout(t, state)
+        end
+
+        state = copy(psi0)
+        dstate = copy(psi0)
+        out_type = pure_inference(fout, Tuple{eltype(tspan),typeof(state)})
+        out = DiffEqCallbacks.SavedValues(Float64,out_type)
+        scb = DiffEqCallbacks.SavingCallback(fout_,out,saveat=tspan,
+                                             save_everystep=save_everystep,
+                                             save_start = false)
+
+        function dojump_display(integrator)
+            x = integrator.u
+            t = integrator.t
+
+            affect! = scb.affect!
+            if display_beforeevent
+                affect!.saveiter += 1
+                copyat_or_push!(affect!.saved_values.t, affect!.saveiter, integrator.t)
+                copyat_or_push!(affect!.saved_values.saveval, affect!.saveiter,
+                    affect!.save_func(integrator.u, integrator.t, integrator),Val{false})
+            end
+
+            recast!(x, psi_tmp)
+            jumpfun(rng, t, psi_tmp, tmp)
+            recast!(tmp, x)
+
+            if display_afterevent
+                affect!.saveiter += 1
+                copyat_or_push!(affect!.saved_values.t, affect!.saveiter, integrator.t)
+                copyat_or_push!(affect!.saved_values.saveval, affect!.saveiter,
+                    affect!.save_func(integrator.u, integrator.t, integrator),Val{false})
+            end
+            jumpnorm[] = rand(rng)
+        end
+
+        cb = OrdinaryDiffEq.ContinuousCallback(djumpnorm,dojump_display,
+                         save_positions = (false,false))
+        full_cb = OrdinaryDiffEq.CallbackSet(callback,cb,scb)
+
+        function df_(dx::Vector{ComplexF64}, x::Vector{ComplexF64}, p, t)
+            recast!(x, state)
+            recast!(dx, dstate)
+            dmcwf(t, state, dstate)
+            recast!(dstate, dx)
+        end
+
+        prob = OrdinaryDiffEq.ODEProblem{true}(df_, x0,(tspan[1],tspan[end]))
+
+        sol = OrdinaryDiffEq.solve(
+                    prob,
+                    alg;
+                    reltol = 1.0e-6,
+                    abstol = 1.0e-8,
+                    save_everystep = false, save_start = false,
+                    save_end = false,
+                    callback=full_cb, kwargs...)
+        return out.t, out.saveval
     end
-
-    return OrdinaryDiffEq.ContinuousCallback(djumpnorm,dojump,
-                     save_positions = (false,false))
 end
-as_vector(psi::State{B,K}) where {B,K<:Ket} = [psi.quantum.data; psi.classical]
 
+function integrate_mcwf(dmcwf::Function, jumpfun::Function, tspan,
+                        psi0::T, seed, fout::Nothing;
+                        kwargs...) where {T<:State}
+    function fout_(t::Float64, x::T)
+        psi = copy(x)
+        normalize!(psi)
+        return psi
+    end
+    integrate_mcwf(dmcwf, jumpfun, tspan, psi0, seed, fout_; kwargs...)
+end
 
 end # module

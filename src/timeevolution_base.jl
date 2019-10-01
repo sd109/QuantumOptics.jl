@@ -1,12 +1,8 @@
-using ..metrics
-
 import OrdinaryDiffEq, DiffEqCallbacks, StochasticDiffEq
 
 export @skiptimechecks
 
 const DiffArray = Union{Vector{ComplexF64}, Array{ComplexF64, 2}}
-
-function recast! end
 
 """
     integrate(tspan::Vector{Float64}, df::Function, x0::Vector{ComplexF64},
@@ -84,7 +80,7 @@ end
 function (c::SteadyStateCondtion)(rho,t,integrator)
     timeevolution.recast!(rho,c.state)
     dt = integrator.dt
-    drho = metrics.tracedistance(c.rho0, c.state)
+    drho = tracedistance(c.rho0, c.state)
     c.rho0.data[:] = c.state.data
     drho/dt < c.tol
 end
