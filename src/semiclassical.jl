@@ -1,9 +1,8 @@
 module semiclassical
 
+using QuantumOpticsBase
 import Base: ==
-import ..bases, ..operators, ..operators_dense
-import ..timeevolution: integrate, recast!, QO_CHECKS
-import ..timeevolution.timeevolution_mcwf: jump, integrate_mcwf, jump_callback, as_vector
+import ..timeevolution: integrate, recast!, jump, integrate_mcwf, jump_callback, as_vector, QO_CHECKS
 import LinearAlgebra: normalize, normalize!
 
 using Random, LinearAlgebra
@@ -13,7 +12,7 @@ import OrdinaryDiffEq
 import DiffEqCallbacks, RecursiveArrayTools.copyat_or_push!
 Base.@pure pure_inference(fout,T) = Core.Compiler.return_type(fout, T)
 
-using ..bases, ..states, ..operators, ..operators_dense, ..timeevolution
+using ..timeevolution
 
 
 const QuantumState{B} = Union{Ket{B}, DenseOperator{B,B}}
@@ -39,17 +38,17 @@ normalize!(state::State{B,T}) where {B,T<:Ket} = normalize!(state.quantum)
 normalize(state::T) where {B,K<:Ket,T<:State{B,K}} = State(normalize(state.quantum),copy(state.classical))
 
 function ==(a::State, b::State)
-    samebases(a.quantum, b.quantum) &&
+    QuantumOpticsBase.samebases(a.quantum, b.quantum) &&
     length(a.classical)==length(b.classical) &&
     (a.classical==b.classical) &&
     (a.quantum==b.quantum)
 end
 
-operators.expect(op, state::State) = expect(op, state.quantum)
-operators.variance(op, state::State) = variance(op, state.quantum)
-operators.ptrace(state::State, indices::Vector{Int}) = State(ptrace(state.quantum, indices), state.classical)
+QuantumOpticsBase.expect(op, state::State) = expect(op, state.quantum)
+QuantumOpticsBase.variance(op, state::State) = variance(op, state.quantum)
+QuantumOpticsBase.ptrace(state::State, indices::Vector{Int}) = State(ptrace(state.quantum, indices), state.classical)
 
-operators_dense.dm(x::State{B,T}) where {B<:Basis,T<:Ket{B}} = State(dm(x.quantum), x.classical)
+QuantumOpticsBase.dm(x::State{B,T}) where {B<:Basis,T<:Ket{B}} = State(dm(x.quantum), x.classical)
 
 
 """
@@ -185,21 +184,21 @@ end
 function dschroedinger_dynamic(t::Float64, state::State{B,T}, fquantum::Function,
             fclassical::Function, dstate::State{B,T}) where {B<:Basis,T<:Ket{B}}
     fquantum_(t, psi) = fquantum(t, state.quantum, state.classical)
-    timeevolution.timeevolution_schroedinger.dschroedinger_dynamic(t, state.quantum, fquantum_, dstate.quantum)
+    timeevolution.dschroedinger_dynamic(t, state.quantum, fquantum_, dstate.quantum)
     fclassical(t, state.quantum, state.classical, dstate.classical)
 end
 
 function dmaster_h_dynamic(t::Float64, state::State{B,T}, fquantum::Function,
             fclassical::Function, rates::DecayRates, dstate::State{B,T}, tmp::T) where {B<:Basis,T<:DenseOperator{B,B}}
     fquantum_(t, rho) = fquantum(t, state.quantum, state.classical)
-    timeevolution.timeevolution_master.dmaster_h_dynamic(t, state.quantum, fquantum_, rates, dstate.quantum, tmp)
+    timeevolution.dmaster_h_dynamic(t, state.quantum, fquantum_, rates, dstate.quantum, tmp)
     fclassical(t, state.quantum, state.classical, dstate.classical)
 end
 
 function dmcwf_h_dynamic(t::Float64, psi::T, fquantum::Function, fclassical::Function, rates::DecayRates,
                     dpsi::T, tmp::K) where {T,K}
     fquantum_(t, rho) = fquantum(t, psi.quantum, psi.classical)
-    timeevolution.timeevolution_mcwf.dmcwf_h_dynamic(t, psi.quantum, fquantum_, rates, dpsi.quantum, tmp)
+    timeevolution.dmcwf_h_dynamic(t, psi.quantum, fquantum_, rates, dpsi.quantum, tmp)
     fclassical(t, psi.quantum, psi.classical, dpsi.classical)
 end
 
