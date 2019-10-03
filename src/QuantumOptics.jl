@@ -5,6 +5,7 @@ using Reexport
 using SparseArrays, LinearAlgebra
 
 export qfunc, wigner, coherentspinstate, qfuncsu2, wignersu2, ylm,
+        eigenstates, eigenenergies, simdiag,
         timeevolution, diagonaljumps, @skiptimechecks,
         steadystate,
         timecorrelations,
@@ -28,6 +29,7 @@ module timeevolution
 end
 include("steadystate.jl")
 include("timecorrelations.jl")
+include("spectralanalysis.jl")
 include("semiclassical.jl")
 module stochastic
     using QuantumOpticsBase

@@ -1,5 +1,6 @@
 names = [
     "test_phasespace.jl",
+    "test_spectralanalysis.jl",
 
     "test_timeevolution_schroedinger.jl",
     "test_timeevolution_master.jl",
