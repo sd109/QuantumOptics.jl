@@ -130,13 +130,14 @@ Calculate MCWF trajectories coupled to a classical system.
 # Arguments
 * `tspan`: Vector specifying the points of time for which output should
         be displayed.
-* `rho0`: Initial semi-classical state [`semiclassical.State`](@ref).
-* `fquantum`: Function `f(t, rho, u) -> (H, J, Jdagger)` returning the time
+* `psi0`: Initial semi-classical state [`semiclassical.State`](@ref) featuring
+        a `Ket`(@ref).
+* `fquantum`: Function `f(t, psi, u) -> (H, J, Jdagger)` returning the time
         and/or state dependent Hamiltonian and Jump operators.
-* `fclassical`: Function `f(t, rho, u, du)` calculating the possibly time and
+* `fclassical`: Function `f(t, psi, u, du)` calculating the possibly time and
         state dependent derivative of the classical equations and storing it
         in the complex vector `du`.
-* `fjump_classical`: Function `f(t, rho, u, i)` making a classical jump when a
+* `fjump_classical`: Function `f(t, psi, u, i)` performing a classical jump when a
         quantum jump of the i-th jump operator occurs.
 * `fout=nothing`: If given, this function `fout(t, state)` is called every time
         an output should be displayed. ATTENTION: The given state is not
