@@ -1,7 +1,6 @@
 import ...timeevolution: dmaster_h, dmaster_nh, dmaster_h_dynamic, check_master
 
 const DecayRates = Union{Vector{Float64}, Matrix{Float64}, Nothing}
-const DiffArray = Union{Vector{ComplexF64}, Array{ComplexF64, 2}}
 
 """
     stochastic.master(tspan, rho0, H, J, C; <keyword arguments>)

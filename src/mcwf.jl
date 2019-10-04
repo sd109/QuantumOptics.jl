@@ -1,8 +1,7 @@
 using Random, LinearAlgebra
-import OrdinaryDiffEq
 
 # TODO: Remove imports
-import DiffEqCallbacks, RecursiveArrayTools.copyat_or_push!
+import RecursiveArrayTools.copyat_or_push!
 
 """
     mcwf_h(tspan, rho0, Hnh, J; <keyword arguments>)

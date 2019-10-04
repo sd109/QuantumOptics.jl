@@ -15,11 +15,7 @@ export qfunc, wigner, coherentspinstate, qfuncsu2, wignersu2, ylm,
 
 include("phasespace.jl")
 module timeevolution
-    using QuantumOpticsBase
-    using QuantumOpticsBase: check_samebases, check_multiplicable
     export diagonaljumps, @skiptimechecks
-
-    function recast! end
 
     include("timeevolution_base.jl")
     include("master.jl")
@@ -32,9 +28,7 @@ include("timecorrelations.jl")
 include("spectralanalysis.jl")
 include("semiclassical.jl")
 module stochastic
-    using QuantumOpticsBase
-    import ..timeevolution: recast!
-    include("timeevolution_base.jl")
+    include("stochastic_base.jl")
     include("stochastic_definitions.jl")
     include("stochastic_schroedinger.jl")
     include("stochastic_master.jl")

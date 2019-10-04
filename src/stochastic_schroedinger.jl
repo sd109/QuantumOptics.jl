@@ -1,7 +1,5 @@
 import ...timeevolution: dschroedinger, dschroedinger_dynamic, check_schroedinger
 
-import DiffEqCallbacks
-
 """
     stochastic.schroedinger(tspan, state0, H, Hs[; fout, ...])
 
