@@ -1,6 +1,6 @@
 name = "QuantumOptics"
 uuid = "6e0679c1-51ea-5a7c-ac74-d61b76210b0c"
-version = "v0.7.0"
+version = "v0.7.1"
 
 [deps]
 QuantumOpticsBase = "4f57444f-1401-5e15-980d-4471b28d5678"
@@ -17,15 +17,16 @@ StochasticDiffEq = "789caeaf-c7a9-5a7d-9973-96adeb23e2a0"
 WignerSymbols = "9f57e263-0b3d-5e2e-b1be-24f2bb48858b"
 
 [compat]
-QuantumOpticsBase = "≥ 0.1.0"
-Arpack = "≥ 0.3.1"
-DiffEqCallbacks = "≥ 2.5.0"
-OrdinaryDiffEq = "≥ 5.7.0"
-RecursiveArrayTools = "≥ 0.20.0"
-Reexport = "≥ 0.2.0"
-StochasticDiffEq = "≥ 6.0.0"
-WignerSymbols = "≥ 0.3.1"
-julia = "≥ 1.1.0"
+QuantumOpticsBase = "0.1"
+Arpack = "0.4"
+DiffEqCallbacks = "2"
+FFTW = "1.2"
+OrdinaryDiffEq = "5"
+RecursiveArrayTools = "2"
+Reexport = "0.2"
+StochasticDiffEq = "6"
+WignerSymbols = "1"
+julia = "1"
 
 [extras]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
