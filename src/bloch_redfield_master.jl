@@ -196,7 +196,7 @@ master_bloch_redfield(tspan::Vector{Float64}, psi::Ket, args...; kwargs...) = ma
 
 # Derivative ∂ₜρ = Lρ
 function dmaster_br(drho::T, rho::T, L::DataOperator{B,B}) where {B<:Basis,T<:Ket{B}}
-    QuantumOpticsBase.gemv!(1.0, L, rho, 0.0, drho)
+    QuantumOpticsBase.mul!(drho,L,rho)
 end
 
 # Integrate if there is no fout specified
@@ -211,8 +211,8 @@ function integrate_br(tspan::Vector{Float64}, dmaster_br::Function, rho::T,
     # Define fout
     function fout(t::Float64, rho::T)
         tmp.data[:] = rho.data
-        QuantumOpticsBase.gemm!(1.0, transf_op, tmp, 0.0, tmp2)
-        QuantumOpticsBase.gemm!(1.0, tmp2, inv_transf_op, 0.0, rho_out)
+        QuantumOpticsBase.mul!(tmp2,transf_op,tmp)
+        QuantumOpticsBase.mul!(rho_out,tmp2,inv_transf_op)
         return copy(rho_out)
     end
 
@@ -231,8 +231,8 @@ function integrate_br(tspan::Vector{Float64}, dmaster_br::Function, rho::T,
     # Perform back-transfomration before calling fout
     function fout_(t::Float64, rho::T)
         tmp.data[:] = rho.data
-        QuantumOpticsBase.gemm!(1.0, transf_op, tmp, 0.0, tmp2)
-        QuantumOpticsBase.gemm!(1.0, tmp2, inv_transf_op, 0.0, rho_out)
+        QuantumOpticsBase.mul!(tmp2,transf_op,tmp)
+        QuantumOpticsBase.mul!(rho_out,tmp2,inv_transf_op)
         return fout(t, rho_out)
     end
 

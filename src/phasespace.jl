@@ -70,7 +70,7 @@ end
 
 function _qfunc_operator(rho::AbstractOperator{B,B}, alpha::ComplexF64, tmp1::Ket, tmp2::Ket) where B<:FockBasis
     coherentstate!(tmp1, basis(rho), alpha)
-    QuantumOpticsBase.gemv!(complex(1.), rho, tmp1, complex(0.), tmp2)
+    QuantumOpticsBase.mul!(tmp2,rho,tmp1,complex(1.),complex(0.))
     a = dot(tmp1.data, tmp2.data)
     return a/pi
 end

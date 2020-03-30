@@ -368,38 +368,38 @@ Default jump function.
 """
 function jump(rng, t::Float64, psi::T, J::Vector, psi_new::T, rates::Nothing) where T<:Ket
     if length(J)==1
-        QuantumOpticsBase.gemv!(complex(1.), J[1], psi, complex(0.), psi_new)
+        QuantumOpticsBase.mul!(psi_new,J[1],psi,complex(1.),complex(0.))
         psi_new.data ./= norm(psi_new)
         i=1
     else
         probs = zeros(Float64, length(J))
         for i=1:length(J)
-            QuantumOpticsBase.gemv!(complex(1.), J[i], psi, complex(0.), psi_new)
+            QuantumOpticsBase.mul!(psi_new,J[i],psi,complex(1.),complex(0.))
             probs[i] = dot(psi_new.data, psi_new.data)
         end
         cumprobs = cumsum(probs./sum(probs))
         r = rand(rng)
         i = findfirst(cumprobs.>r)
-        QuantumOpticsBase.gemv!(complex(1.)/sqrt(probs[i]), J[i], psi, complex(0.), psi_new)
+        QuantumOpticsBase.mul!(psi_new,J[i],psi,complex(1.)/sqrt(probs[i]),complex(0.))
     end
     return i
 end
 
 function jump(rng, t::Float64, psi::T, J::Vector, psi_new::T, rates::Vector{Float64}) where T<:Ket
     if length(J)==1
-        QuantumOpticsBase.gemv!(complex(sqrt(rates[1])), J[1], psi, complex(0.), psi_new)
+        QuantumOpticsBase.mul!(psi_new,J[1],psi,complex(sqrt(rates[1])),complex(0.))
         psi_new.data ./= norm(psi_new)
         i=1
     else
         probs = zeros(Float64, length(J))
         for i=1:length(J)
-            QuantumOpticsBase.gemv!(complex(sqrt(rates[i])), J[i], psi, complex(0.), psi_new)
+            QuantumOpticsBase.mul!(psi_new,J[i],psi,complex(sqrt(rates[i])),complex(0.))
             probs[i] = dot(psi_new.data, psi_new.data)
         end
         cumprobs = cumsum(probs./sum(probs))
         r = rand(rng)
         i = findfirst(cumprobs.>r)
-        QuantumOpticsBase.gemv!(complex(sqrt(rates[i]/probs[i])), J[i], psi, complex(0.), psi_new)
+        QuantumOpticsBase.mul!(psi_new,J[i],psi,complex(sqrt(rates[i]/probs[i])),complex(0.))
     end
     return i
 end
@@ -412,20 +412,20 @@ the jump operators J.
 """
 function dmcwf_h(psi::T, H::AbstractOperator{B,B},
                  J::Vector, Jdagger::Vector, dpsi::T, tmp::T, rates::Nothing) where {B<:Basis,T<:Ket{B}}
-    QuantumOpticsBase.gemv!(complex(0,-1.), H, psi, complex(0.), dpsi)
+    QuantumOpticsBase.mul!(dpsi,H,psi,complex(0,-1.),complex(0.))
     for i=1:length(J)
-        QuantumOpticsBase.gemv!(complex(1.), J[i], psi, complex(0.), tmp)
-        QuantumOpticsBase.gemv!(-complex(0.5,0.), Jdagger[i], tmp, complex(1.), dpsi)
+        QuantumOpticsBase.mul!(tmp,J[i],psi,complex(1.),complex(0.))
+        QuantumOpticsBase.mul!(dpsi,Jdagger[i],tmp,-complex(0.5,0.),complex(1.))
     end
     return dpsi
 end
 
 function dmcwf_h(psi::T, H::AbstractOperator{B,B},
                  J::Vector, Jdagger::Vector, dpsi::T, tmp::T, rates::Vector{Float64}) where {B<:Basis,T<:Ket{B}}
-    QuantumOpticsBase.gemv!(complex(0,-1.), H, psi, complex(0.), dpsi)
+    QuantumOpticsBase.mul!(dpsi,H,psi,complex(0,-1.),complex(0.))
     for i=1:length(J)
-        QuantumOpticsBase.gemv!(complex(rates[i]), J[i], psi, complex(0.), tmp)
-        QuantumOpticsBase.gemv!(-complex(0.5,0.), Jdagger[i], tmp, complex(1.), dpsi)
+        QuantumOpticsBase.mul!(tmp,J[i],psi,complex(rates[i]),complex(0.))
+        QuantumOpticsBase.mul!(dpsi,Jdagger[i],tmp,-complex(0.5,0.),complex(1.))
     end
     return dpsi
 end
@@ -437,7 +437,7 @@ Evaluate non-hermitian Schroedinger equation.
 The given Hamiltonian is already the non-hermitian version.
 """
 function dmcwf_nh(psi::T, Hnh::AbstractOperator{B,B}, dpsi::T) where {B<:Basis,T<:Ket{B}}
-    QuantumOpticsBase.gemv!(complex(0,-1.), Hnh, psi, complex(0.), dpsi)
+    QuantumOpticsBase.mul!(dpsi,Hnh,psi,complex(0,-1.),complex(0.))
     return dpsi
 end
 

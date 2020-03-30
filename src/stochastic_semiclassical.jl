@@ -225,8 +225,8 @@ function dmaster_stoch_dynamic(dx::Vector{ComplexF64}, t::Float64,
     C, Cdagger = result
     QO_CHECKS[] && check_master_stoch(state.quantum, C, Cdagger)
     recast!(dx, dstate)
-    QuantumOpticsBase.gemm!(1, C[1], state.quantum, 0, dstate.quantum)
-    QuantumOpticsBase.gemm!(1, state.quantum, Cdagger[1], 1, dstate.quantum)
+    QuantumOpticsBase.mul!(dstate.quantum,C[1],state.quantum)
+    QuantumOpticsBase.mul!(dstate.quantum,state.quantum,Cdagger[1],1,1)
     dstate.quantum.data .-= tr(dstate.quantum)*state.quantum.data
     recast!(dstate, dx)
 end
@@ -240,8 +240,8 @@ function dmaster_stoch_dynamic(dx::Array{ComplexF64, 2}, t::Float64,
     for i=1:n
         dx_i = @view dx[:, i]
         recast!(dx_i, dstate)
-        QuantumOpticsBase.gemm!(1, C[i], state.quantum, 0, dstate.quantum)
-        QuantumOpticsBase.gemm!(1, state.quantum, Cdagger[i], 1, dstate.quantum)
+        QuantumOpticsBase.mul!(dstate.quantum,C[i],state.quantum)
+        QuantumOpticsBase.mul!(dstate.quantum,state.quantum,Cdagger[i],1,1)
         dstate.quantum.data .-= tr(dstate.quantum)*state.quantum.data
         recast!(dstate, dx_i)
     end

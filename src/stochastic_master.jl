@@ -129,8 +129,8 @@ master_dynamic(tspan::Vector{Float64}, psi0::Ket, args...; kwargs...) = master_d
 function dmaster_stochastic(dx::Vector{ComplexF64}, rho::T,
             C::Vector, Cdagger::Vector, drho::T, ::Int) where {B<:Basis,T<:DenseOperator{B,B}}
     recast!(dx, drho)
-    QuantumOpticsBase.gemm!(1, C[1], rho, 0, drho)
-    QuantumOpticsBase.gemm!(1, rho, Cdagger[1], 1, drho)
+    QuantumOpticsBase.mul!(drho,C[1],rho)
+    QuantumOpticsBase.mul!(drho,rho,Cdagger[1],1,1)
     drho.data .-= tr(drho)*rho.data
 end
 function dmaster_stochastic(dx::Array{ComplexF64, 2}, rho::T,
@@ -138,8 +138,8 @@ function dmaster_stochastic(dx::Array{ComplexF64, 2}, rho::T,
     for i=1:n
         dx_i = @view dx[:, i]
         recast!(dx_i, drho)
-        QuantumOpticsBase.gemm!(1, C[i], rho, 0, drho)
-        QuantumOpticsBase.gemm!(1, rho, Cdagger[i], 1, drho)
+        QuantumOpticsBase.mul!(drho,C[i],rho)
+        QuantumOpticsBase.mul!(drho,rho,Cdagger[i],1,1)
         drho.data .-= tr(drho)*rho.data
         recast!(drho, dx_i)
     end

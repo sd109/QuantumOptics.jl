@@ -55,12 +55,12 @@ recast!(psi::StateVector{B,D}, x::D) where {B<:Basis, D<:Vector{ComplexF64}} = n
 
 
 function dschroedinger(psi::Ket{B}, H::AbstractOperator{B,B}, dpsi::Ket{B}) where B<:Basis
-    QuantumOpticsBase.gemv!(complex(0,-1.), H, psi, complex(0.), dpsi)
+    QuantumOpticsBase.mul!(dpsi,H,psi,complex(0,-1.),complex(0.))
     return dpsi
 end
 
 function dschroedinger(psi::Bra{B}, H::AbstractOperator{B,B}, dpsi::Bra{B}) where B<:Basis
-    QuantumOpticsBase.gemv!(complex(0,1.), psi, H, complex(0.), dpsi)
+    QuantumOpticsBase.mul!(dpsi,psi,H,complex(0,1.),complex(0.))
     return dpsi
 end
 
