@@ -3,8 +3,6 @@ using QuantumOpticsBase: check_samebases, check_multiplicable
 
 import OrdinaryDiffEq, DiffEqCallbacks
 
-const DiffArray = Union{Vector{ComplexF64}, Array{ComplexF64, 2}}
-
 function recast! end
 
 """
@@ -13,19 +11,19 @@ function recast! end
 
 Integrate using OrdinaryDiffEq
 """
-function integrate(tspan::Vector{Float64}, df::Function, x0::DiffArray,
+function integrate(tspan::Vector{Float64}, df::Function, x0::X,
             state::T, dstate::T, fout::Function;
             alg::OrdinaryDiffEq.OrdinaryDiffEqAlgorithm = OrdinaryDiffEq.DP5(),
             steady_state = false, tol = 1e-3, save_everystep = false,
-            callback = nothing, kwargs...) where T
+            callback = nothing, kwargs...) where {T,X}
 
-    function df_(dx::DiffArray, x::DiffArray, p, t)
+    function df_(dx::T, x::T, p, t) where T
         recast!(x, state)
         recast!(dx, dstate)
         df(t, state, dstate)
         recast!(dstate, dx)
     end
-    function fout_(x::DiffArray, t::Float64, integrator)
+    function fout_(x, t::Float64, integrator)
         recast!(x, state)
         fout(t, state)
     end
@@ -67,8 +65,8 @@ function integrate(tspan::Vector{Float64}, df::Function, x0::DiffArray,
     out.t,out.saveval
 end
 
-function integrate(tspan::Vector{Float64}, df::Function, x0::DiffArray,
-            state::T, dstate::T, ::Nothing; kwargs...) where T
+function integrate(tspan::Vector{Float64}, df::Function, x0::X,
+            state::T, dstate::T, ::Nothing; kwargs...) where {T,X}
     function fout(t::Float64, state::T)
         copy(state)
     end

@@ -1,8 +1,11 @@
 using QuantumOpticsBase
 using QuantumOpticsBase: check_samebases, check_multiplicable
-import ..timeevolution: recast!, QO_CHECKS, DiffArray, pure_inference
+import ..timeevolution: recast!, QO_CHECKS, pure_inference
 
 import DiffEqCallbacks, StochasticDiffEq, OrdinaryDiffEq
+
+const DiffArray{T} = Union{AbstractArray{T,1}, AbstractArray{T, 2}}
+
 
 """
     integrate_stoch(tspan::Vector{Float64}, df::Function, dg::Vector{Function}, x0::Vector{ComplexF64},
@@ -10,7 +13,7 @@ import DiffEqCallbacks, StochasticDiffEq, OrdinaryDiffEq
 
 Integrate using StochasticDiffEq
 """
-function integrate_stoch(tspan::Vector{Float64}, df::Function, dg::Function, x0::Vector{ComplexF64},
+function integrate_stoch(tspan::Vector{Float64}, df::Function, dg::Function, x0::Vector,
             state::T, dstate::T, fout::Function, n::Int;
             save_everystep = false, callback=nothing,
             alg::StochasticDiffEq.StochasticDiffEqAlgorithm=StochasticDiffEq.EM(),
@@ -20,20 +23,19 @@ function integrate_stoch(tspan::Vector{Float64}, df::Function, dg::Function, x0:
             ncb=nothing,
             kwargs...) where T
 
-    function df_(dx::Vector{ComplexF64}, x::Vector{ComplexF64}, p, t)
+    function df_(dx::T, x::T, p, t) where T
         recast!(x, state)
         recast!(dx, dstate)
         df(t, state, dstate)
         recast!(dstate, dx)
     end
 
-    function dg_(dx::Union{Vector{ComplexF64}, Array{ComplexF64, 2}},
-                x::Vector{ComplexF64}, p, t)
+    function dg_(dx, x, p, t) where T
         recast!(x, state)
         dg(dx, t, state, dstate, n)
     end
 
-    function fout_(x::Vector{ComplexF64}, t::Float64, integrator)
+    function fout_(x::Vector, t::Float64, integrator)
         recast!(x, state)
         fout(t, state)
     end
@@ -50,7 +52,7 @@ function integrate_stoch(tspan::Vector{Float64}, df::Function, dg::Function, x0:
     end
     if isa(noise_rate_prototype, Nothing)
         if n > 1 || nc > 1 || (n > 0 && nc > 0)
-            noise_rate_prototype = zeros(ComplexF64, length(x0), n + nc)
+            noise_rate_prototype = zeros(eltype(x0), length(x0), n + nc)
         end
     end
 
@@ -85,7 +87,7 @@ end
 
 Define fout if it was omitted.
 """
-function integrate_stoch(tspan::Vector{Float64}, df::Function, dg::Function, x0::Vector{ComplexF64},
+function integrate_stoch(tspan::Vector{Float64}, df::Function, dg::Function, x0::Vector,
     state::T, dstate::T, ::Nothing, n::Int; kwargs...) where T
     function fout(t::Float64, state::T)
         copy(state)

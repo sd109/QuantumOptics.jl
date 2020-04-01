@@ -230,7 +230,7 @@ function dmaster_h(rho::T, H::AbstractOperator{B,B},
 end
 
 function dmaster_h(rho::T, H::AbstractOperator{B,B},
-                    rates::Matrix{Float64}, J::Vector, Jdagger::Vector,
+                    rates::Matrix, J::Vector, Jdagger::Vector,
                     drho::T, tmp::T) where {B<:Basis,T<:Operator{B,B}}
     QuantumOpticsBase.mul!(drho,H,rho,-1im,0)
     QuantumOpticsBase.mul!(drho,rho,H,1im,1)
@@ -259,7 +259,7 @@ function dmaster_nh(rho::T1, Hnh::T2, Hnh_dagger::T2,
 end
 
 function dmaster_nh(rho::T1, Hnh::T2, Hnh_dagger::T2,
-                    rates::Vector{Float64}, J::Vector, Jdagger::Vector,
+                    rates::Vector, J::Vector, Jdagger::Vector,
                     drho::T1, tmp::T1) where {B<:Basis,T1<:Operator{B,B},T2<:AbstractOperator{B,B}}
     QuantumOpticsBase.mul!(drho,Hnh,rho,-1im,0)
     QuantumOpticsBase.mul!(drho,rho,Hnh_dagger,1im,1)
@@ -271,7 +271,7 @@ function dmaster_nh(rho::T1, Hnh::T2, Hnh_dagger::T2,
 end
 
 function dmaster_nh(rho::T1, Hnh::T2, Hnh_dagger::T2,
-                    rates::Matrix{Float64}, J::Vector, Jdagger::Vector,
+                    rates::Matrix, J::Vector, Jdagger::Vector,
                     drho::T1, tmp::T1) where {B<:Basis,T1<:Operator{B,B},T2<:AbstractOperator{B,B}}
     QuantumOpticsBase.mul!(drho,Hnh,rho,-1im,0)
     QuantumOpticsBase.mul!(drho,rho,Hnh_dagger,1im,1)

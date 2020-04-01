@@ -273,7 +273,7 @@ function integrate_mcwf(dmcwf::Function, jumpfun::Function, tspan,
         (t,i)->nothing
     end
 
-    function fout_(x::Vector{ComplexF64}, t::Float64, integrator)
+    function fout_(x::Vector, t::Float64, integrator)
         recast!(x, state)
         fout(t, state)
     end
@@ -289,7 +289,7 @@ function integrate_mcwf(dmcwf::Function, jumpfun::Function, tspan,
     cb = jump_callback(jumpfun, seed, scb, save_before!, save_after!, save_t_index, psi0)
     full_cb = OrdinaryDiffEq.CallbackSet(callback,cb,scb)
 
-    function df_(dx::D, x::D, p, t) where D<:Vector{ComplexF64}
+    function df_(dx::D, x::D, p, t) where D
         recast!(x, state)
         recast!(dx, dstate)
         dmcwf(t, state, dstate)
@@ -385,7 +385,7 @@ function jump(rng, t::Float64, psi::T, J::Vector, psi_new::T, rates::Nothing) wh
     return i
 end
 
-function jump(rng, t::Float64, psi::T, J::Vector, psi_new::T, rates::Vector{Float64}) where T<:Ket
+function jump(rng, t::Float64, psi::T, J::Vector, psi_new::T, rates::Vector) where T<:Ket
     if length(J)==1
         QuantumOpticsBase.mul!(psi_new,J[1],psi,complex(sqrt(rates[1])),complex(0.))
         psi_new.data ./= norm(psi_new)
@@ -421,7 +421,7 @@ function dmcwf_h(psi::T, H::AbstractOperator{B,B},
 end
 
 function dmcwf_h(psi::T, H::AbstractOperator{B,B},
-                 J::Vector, Jdagger::Vector, dpsi::T, tmp::T, rates::Vector{Float64}) where {B<:Basis,T<:Ket{B}}
+                 J::Vector, Jdagger::Vector, dpsi::T, tmp::T, rates::Vector) where {B<:Basis,T<:Ket{B}}
     QuantumOpticsBase.mul!(dpsi,H,psi,complex(0,-1.),complex(0.))
     for i=1:length(J)
         QuantumOpticsBase.mul!(tmp,J[i],psi,complex(rates[i]),complex(0.))
@@ -486,13 +486,13 @@ corresponding set of jump operators is calculated.
 * `rates`: Matrix of decay rates.
 * `J`: Vector of jump operators.
 """
-function diagonaljumps(rates::Matrix{Float64}, J::Vector{T}) where {B<:Basis,T<:AbstractOperator{B,B}}
+function diagonaljumps(rates::Matrix, J::Vector{T}) where {B<:Basis,T<:AbstractOperator{B,B}}
     @assert length(J) == size(rates)[1] == size(rates)[2]
     d, v = eigen(rates)
     d, [sum([v[j, i]*J[j] for j=1:length(d)]) for i=1:length(d)]
 end
 
-function diagonaljumps(rates::Matrix{Float64}, J::Vector{T}) where {B<:Basis,T<:Union{LazySum{B,B},LazyTensor{B,B},LazyProduct{B,B}}}
+function diagonaljumps(rates::Matrix, J::Vector{T}) where {B<:Basis,T<:Union{LazySum{B,B},LazyTensor{B,B},LazyProduct{B,B}}}
     @assert length(J) == size(rates)[1] == size(rates)[2]
     d, v = eigen(rates)
     d, [LazySum([v[j, i]*J[j] for j=1:length(d)]...) for i=1:length(d)]
