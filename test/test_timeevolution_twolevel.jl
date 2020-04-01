@@ -31,7 +31,7 @@ f(t, psi::Ket) = @test 1e-5 > norm(psi - U(t)*psi0)
 timeevolution.schroedinger(T, psi0, H; fout=f)
 timeevolution.mcwf(T, psi0, H, []; fout=f)
 
-f(t, rho::DenseOperator) = @test 1e-5 > tracedistance(rho, dm(U(t)*psi0))
+f(t, rho::DenseOpType) = @test 1e-5 > tracedistance(rho, dm(U(t)*psi0))
 timeevolution.master(T, psi0, H, []; fout=f)
 
 end # testset

@@ -32,7 +32,7 @@ rho_end = [0.38206-0.0im 0.0466443+0.0175017im
             0.0466443-0.0175017im 0.61794+0.0im]
 @test isapprox(ρt[end].data, rho_end, atol=1e-5)
 @test ρt[end] != ρt[end-1]
-@test isa(ρt, Vector{<:DenseOperator})
+@test isa(ρt, Vector{<:DenseOpType})
 
 # Test fout
 fout(t,rho) = copy(rho)

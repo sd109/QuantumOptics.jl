@@ -20,7 +20,7 @@ dense one using `dense(A)`.
 If the given operator is non-hermitian a warning is given. This behavior
 can be turned off using the keyword `warning=false`.
 """
-function eigenstates(op::DenseOperator, n::Int=length(basis(op)); warning=true)
+function eigenstates(op::DenseOpType, n::Int=length(basis(op)); warning=true)
     b = basis(op)
     if ishermitian(op)
         D, V = eigen(Hermitian(op.data), 1:n)
@@ -40,7 +40,7 @@ end
 """
 For sparse operators by default it only returns the 6 lowest eigenvalues.
 """
-function eigenstates(op::SparseOperator, n::Int=6; warning::Bool=true,
+function eigenstates(op::SparseOpType, n::Int=6; warning::Bool=true,
         info::Bool=true, kwargs...)
     b = basis(op)
     # TODO: Change to sparese-Hermitian specific algorithm if more efficient
@@ -67,7 +67,7 @@ More details can be found at
 If the given operator is non-hermitian a warning is given. This behavior
 can be turned off using the keyword `warning=false`.
 """
-function eigenenergies(op::DenseOperator, n::Int=length(basis(op)); warning=true)
+function eigenenergies(op::DenseOpType, n::Int=length(basis(op)); warning=true)
     b = basis(op)
     if ishermitian(op)
         D = eigvals(Hermitian(op.data), 1:n)
@@ -83,7 +83,7 @@ end
 """
 For sparse operators by default it only returns the 6 lowest eigenvalues.
 """
-eigenenergies(op::SparseOperator, n::Int=6; kwargs...) = eigenstates(op, n; kwargs...)[1]
+eigenenergies(op::SparseOpType, n::Int=6; kwargs...) = eigenstates(op, n; kwargs...)[1]
 
 
 arithmetic_unary_error = QuantumOpticsBase.arithmetic_unary_error
@@ -112,7 +112,7 @@ the equation ``A|ψ⟩ = a|ψ⟩``.
         by the eigenvalues of the first operator.
 * `v`: Common eigenvectors.
 """
-function simdiag(ops::Vector{T}; atol::Real=1e-14, rtol::Real=1e-14) where T<:DenseOperator
+function simdiag(ops::Vector{T}; atol::Real=1e-14, rtol::Real=1e-14) where T<:DenseOpType
     # Check input
     for A=ops
         if !ishermitian(A)

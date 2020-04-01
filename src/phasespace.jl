@@ -86,7 +86,7 @@ function can either be evaluated on one point α or on a grid specified by
 the vectors `xvec` and `yvec`. Note that conversion from `x` and `y` to `α` is
 done via the relation ``α = \\frac{1}{\\sqrt{2}}(x + i y)``.
 """
-function wigner(rho::DenseOperator{B,B}, x::Number, y::Number) where B<:FockBasis
+function wigner(rho::Operator{B,B}, x::Number, y::Number) where B<:FockBasis
     b = basis(rho)
     N = b.N::Int
     _2α = complex(convert(Float64, x), convert(Float64, y))*sqrt(2)
@@ -102,7 +102,7 @@ function wigner(rho::DenseOperator{B,B}, x::Number, y::Number) where B<:FockBasi
     exp(-abs2_2α/2)/pi*real(w)
 end
 
-function wigner(rho::DenseOperator{B,B}, xvec::Vector{Float64}, yvec::Vector{Float64}) where B<:FockBasis
+function wigner(rho::Operator{B,B}, xvec::Vector{Float64}, yvec::Vector{Float64}) where B<:FockBasis
     b = basis(rho)
     N = b.N::Int
     _2α = [complex(x, y)*sqrt(2) for x=xvec, y=yvec]
@@ -242,7 +242,7 @@ function qfuncsu2(psi::Ket{B}, Ntheta::Int; Nphi::Int=2Ntheta) where B<:SpinBasi
     return result
 end
 
-function qfuncsu2(rho::DenseOperator{B,B}, Ntheta::Int; Nphi::Int=2Ntheta) where B<:SpinBasis
+function qfuncsu2(rho::Operator{B,B}, Ntheta::Int; Nphi::Int=2Ntheta) where B<:SpinBasis
     b = basis(rho)
     lb = float(b.spinnumber)
     result = Array{Float64}(undef, Ntheta,Nphi)
@@ -261,7 +261,7 @@ function qfuncsu2(psi::Ket{B}, theta::Real, phi::Real) where B<:SpinBasis
     return result
 end
 
-function qfuncsu2(rho::DenseOperator{B,B}, theta::Real, phi::Real) where B<:SpinBasis
+function qfuncsu2(rho::Operator{B,B}, theta::Real, phi::Real) where B<:SpinBasis
     b = basis(rho)
     lb = float(b.spinnumber)
     c = coherentspinstate(b,theta,phi)
@@ -284,7 +284,7 @@ decomposing the state into the basis of spherical harmonics.
 
 This version calculates the Wigner SU(2) function at a position given by θ and ϕ
 """
-function wignersu2(rho::DenseOperator{B,B}, theta::Real, phi::Real) where B<:SpinBasis
+function wignersu2(rho::Operator{B,B}, theta::Real, phi::Real) where B<:SpinBasis
 
     N = length(basis(rho))-1
 
@@ -334,7 +334,7 @@ function wignersu2(rho::DenseOperator{B,B}, theta::Real, phi::Real) where B<:Spi
     return wignermap*sqrt((N+1)/(4pi))
 end
 
-function wignersu2(rho::DenseOperator{B,B}, Ntheta::Int; Nphi::Int=2Ntheta) where B<:SpinBasis
+function wignersu2(rho::Operator{B,B}, Ntheta::Int; Nphi::Int=2Ntheta) where B<:SpinBasis
 
     N = length(basis(rho))-1
 

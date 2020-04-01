@@ -144,5 +144,5 @@ function dschroedinger_stochastic(dx::DiffArray,
     dschroedinger_stochastic(dx, psi, ops, dpsi, n)
 end
 
-recast!(psi::Ket, x::SubArray{ComplexF64, 1}) = (x .= psi.data)
-recast!(x::SubArray{ComplexF64, 1}, psi::Ket) = (psi.data = x)
+recast!(psi::Ket, x::SubArray) = (x .= psi.data)
+recast!(x::SubArray, psi::Ket) = (psi.data = x)

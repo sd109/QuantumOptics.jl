@@ -144,7 +144,7 @@ function master_semiclassical(tspan::Vector{Float64}, rho0::S,
                 noise_processes::Int=0,
                 noise_prototype_classical=nothing,
                 nonlinear::Bool=true,
-                kwargs...) where {B<:Basis,T<:DenseOperator{B,B},S<:State{B,T}}
+                kwargs...) where {B<:Basis,T<:Operator{B,B},S<:State{B,T}}
 
     tmp = copy(rho0.quantum)
     if isa(fstoch_quantum, Nothing) && isa(fstoch_classical, Nothing)
@@ -219,7 +219,7 @@ end
 
 function dmaster_stoch_dynamic(dx::Vector{ComplexF64}, t::Float64,
             state::S, fstoch_quantum::Function,
-            fstoch_classical::Nothing, dstate::S, ::Int) where {B<:Basis,T<:DenseOperator{B,B},S<:State{B,T}}
+            fstoch_classical::Nothing, dstate::S, ::Int) where {B<:Basis,T<:Operator{B,B},S<:State{B,T}}
     result = fstoch_quantum(t, state.quantum, state.classical)
     QO_CHECKS[] && @assert length(result) == 2
     C, Cdagger = result
@@ -232,7 +232,7 @@ function dmaster_stoch_dynamic(dx::Vector{ComplexF64}, t::Float64,
 end
 function dmaster_stoch_dynamic(dx::Array{ComplexF64, 2}, t::Float64,
             state::S, fstoch_quantum::Function,
-            fstoch_classical::Nothing, dstate::S, n::Int) where {B<:Basis,T<:DenseOperator{B,B},S<:State{B,T}}
+            fstoch_classical::Nothing, dstate::S, n::Int) where {B<:Basis,T<:Operator{B,B},S<:State{B,T}}
     result = fstoch_quantum(t, state.quantum, state.classical)
     QO_CHECKS[] && @assert length(result) == 2
     C, Cdagger = result
@@ -248,13 +248,13 @@ function dmaster_stoch_dynamic(dx::Array{ComplexF64, 2}, t::Float64,
 end
 function dmaster_stoch_dynamic(dx::DiffArray, t::Float64,
             state::S, fstoch_quantum::Nothing,
-            fstoch_classical::Function, dstate::S, ::Int) where {B<:Basis,T<:DenseOperator{B,B},S<:State{B,T}}
+            fstoch_classical::Function, dstate::S, ::Int) where {B<:Basis,T<:Operator{B,B},S<:State{B,T}}
     dclassical = @view dx[length(state.quantum)+1:end, :]
     fstoch_classical(t, state.quantum, state.classical, dclassical)
 end
 function dmaster_stoch_dynamic(dx::Array{ComplexF64, 2}, t::Float64,
             state::S, fstoch_quantum::Function,
-            fstoch_classical::Function, dstate::S, n::Int) where {B<:Basis,T<:DenseOperator{B,B},S<:State{B,T}}
+            fstoch_classical::Function, dstate::S, n::Int) where {B<:Basis,T<:Operator{B,B},S<:State{B,T}}
     dmaster_stoch_dynamic(dx, t, state, fstoch_quantum, nothing, dstate, n)
 
     dx_i = @view dx[length(state.quantum)+1:end, n+1:end]
@@ -264,7 +264,7 @@ end
 function integrate_master_stoch(tspan, df::Function, dg::Function,
                         rho0::State{B,T}, fout::Union{Nothing, Function},
                         n::Int;
-                        kwargs...) where {B<:Basis,T<:DenseOperator{B,B}}
+                        kwargs...) where {B<:Basis,T<:Operator{B,B}}
     tspan_ = convert(Vector{Float64}, tspan)
     x0 = Vector{ComplexF64}(undef, length(rho0))
     recast!(rho0, x0)
@@ -273,13 +273,13 @@ function integrate_master_stoch(tspan, df::Function, dg::Function,
     integrate_stoch(tspan_, df, dg, x0, state, dstate, fout, n; kwargs...)
 end
 
-function recast!(state::State, x::SubArray{ComplexF64, 1})
+function recast!(state::State, x::SubArray)
     N = length(state.quantum)
     copyto!(x, 1, state.quantum.data, 1, N)
     copyto!(x, N+1, state.classical, 1, length(state.classical))
     x
 end
-function recast!(x::SubArray{ComplexF64, 1}, state::State)
+function recast!(x::SubArray, state::State)
     N = length(state.quantum)
     copyto!(state.quantum.data, 1, x, 1, N)
     copyto!(state.classical, 1, x, N+1, length(state.classical))

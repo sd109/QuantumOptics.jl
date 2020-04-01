@@ -36,7 +36,7 @@ function master(tspan, rho0::T, H::AbstractOperator{B,B},
                 rates::DecayRates=nothing,
                 Jdagger::Vector=dagger.(J), Cdagger::Vector=dagger.(C),
                 fout::Union{Function,Nothing}=nothing,
-                kwargs...) where {B<:Basis,T<:DenseOperator{B,B}}
+                kwargs...) where {B<:Basis,T<:Operator{B,B}}
 
     tmp = copy(rho0)
 
@@ -107,7 +107,7 @@ function master_dynamic(tspan::Vector{Float64}, rho0::T, fdeterm::Function, fsto
                 rates::DecayRates=nothing,
                 fout::Union{Function,Nothing}=nothing,
                 noise_processes::Int=0,
-                kwargs...) where {B<:Basis,T<:DenseOperator{B,B}}
+                kwargs...) where {B<:Basis,T<:Operator{B,B}}
 
     tmp = copy(rho0)
 
@@ -127,14 +127,14 @@ master_dynamic(tspan::Vector{Float64}, psi0::Ket, args...; kwargs...) = master_d
 
 # Derivative functions
 function dmaster_stochastic(dx::Vector{ComplexF64}, rho::T,
-            C::Vector, Cdagger::Vector, drho::T, ::Int) where {B<:Basis,T<:DenseOperator{B,B}}
+            C::Vector, Cdagger::Vector, drho::T, ::Int) where {B<:Basis,T<:Operator{B,B}}
     recast!(dx, drho)
     QuantumOpticsBase.mul!(drho,C[1],rho)
     QuantumOpticsBase.mul!(drho,rho,Cdagger[1],1,1)
     drho.data .-= tr(drho)*rho.data
 end
 function dmaster_stochastic(dx::Array{ComplexF64, 2}, rho::T,
-            C::Vector, Cdagger::Vector, drho::T, n::Int) where {B<:Basis,T<:DenseOperator{B,B}}
+            C::Vector, Cdagger::Vector, drho::T, n::Int) where {B<:Basis,T<:Operator{B,B}}
     for i=1:n
         dx_i = @view dx[:, i]
         recast!(dx_i, drho)
@@ -146,7 +146,7 @@ function dmaster_stochastic(dx::Array{ComplexF64, 2}, rho::T,
 end
 
 function dmaster_stoch_dynamic(dx::DiffArray, t::Float64, rho::T,
-            f::Function, drho::T, n::Int) where {B<:Basis,T<:DenseOperator{B,B}}
+            f::Function, drho::T, n::Int) where {B<:Basis,T<:Operator{B,B}}
     result = f(t, rho)
     QO_CHECKS[] && @assert 2 == length(result)
     C, Cdagger = result
@@ -155,7 +155,7 @@ function dmaster_stoch_dynamic(dx::DiffArray, t::Float64, rho::T,
 end
 
 function integrate_master_stoch(tspan, df::Function, dg::Function,
-                        rho0::DenseOperator, fout::Union{Nothing, Function},
+                        rho0::Operator, fout::Union{Nothing, Function},
                         n::Int;
                         kwargs...)
     tspan_ = convert(Vector{Float64}, tspan)
@@ -165,19 +165,19 @@ function integrate_master_stoch(tspan, df::Function, dg::Function,
     integrate_stoch(tspan_, df, dg, x0, state, dstate, fout, n; kwargs...)
 end
 
-function check_master_stoch(rho0::DenseOperator{B,B}, C::Vector, Cdagger::Vector) where B<:Basis
+function check_master_stoch(rho0::Operator{B,B}, C::Vector, Cdagger::Vector) where B<:Basis
     # TODO: replace type checks by dispatch; make types of C known
     @assert length(C) == length(Cdagger)
     isreducible = true
     for c=C
         @assert isa(c, AbstractOperator{B,B})
-        if !(isa(c, DenseOperator) || isa(c, SparseOperator))
+        if !isa(c, DataOperator)
             isreducible = false
         end
     end
     for c=Cdagger
         @assert isa(c, AbstractOperator{B,B})
-        if !(isa(c, DenseOperator) || isa(c, SparseOperator))
+        if !isa(c, DataOperator)
             isreducible = false
         end
     end
@@ -186,8 +186,8 @@ end
 
 
 # TODO: Speed up by recasting to n-d arrays, remove vector methods
-function recast!(x::Union{Vector{ComplexF64}, SubArray{ComplexF64, 1}}, rho::DenseOperator{B,B,T}) where {B<:Basis,T<:Matrix{ComplexF64}}
+function recast!(x::Union{Vector, SubArray}, rho::Operator{B,B,T}) where {B<:Basis,T}
     rho.data = reshape(x, size(rho.data))
 end
-recast!(state::DenseOperator{B,B}, x::SubArray{ComplexF64, 1}) where B<:Basis = (x[:] = state.data)
-recast!(state::DenseOperator{B,B}, x::Vector{ComplexF64}) where B<:Basis = nothing
+recast!(state::Operator{B,B}, x::SubArray) where B<:Basis = (x[:] = state.data)
+recast!(state::Operator{B,B}, x::Vector) where B<:Basis = nothing

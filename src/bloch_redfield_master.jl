@@ -175,7 +175,7 @@ Time-evolution according to a Bloch-Redfield master equation.
 function master_bloch_redfield(tspan::Vector{Float64},
         rho0::T, L::SuperOperator{Tuple{B,B},Tuple{B,B}},
         H::AbstractOperator{B,B}; fout::Union{Function,Nothing}=nothing,
-        kwargs...) where {B<:Basis,T<:DenseOperator{B,B}}
+        kwargs...) where {B<:Basis,T<:Operator{B,B}}
 
     #Prep basis transf
     evals, transf_mat = eigen(dense(H).data)
@@ -185,7 +185,7 @@ function master_bloch_redfield(tspan::Vector{Float64},
     # rho as Ket and L as DataOperator
     basis_comp = rho0.basis_l^2
     rho0_eb = Ket(basis_comp, (inv_transf_op * rho0 * transf_op).data[:]) #Transform to H eb and convert to Ket
-    L_ = isa(L, DenseSuperOperator) ? DenseOperator(basis_comp, L.data) : SparseOperator(basis_comp, L.data)
+    L_ = isa(L, SparseSuperOpType) ? SparseOperator(basis_comp, L.data) : DenseOperator(basis_comp, L.data)
 
     # Derivative function
     dmaster_br_(t::Float64, rho::T2, drho::T2) where T2<:Ket = dmaster_br(drho, rho, L_)
@@ -202,7 +202,7 @@ end
 # Integrate if there is no fout specified
 function integrate_br(tspan::Vector{Float64}, dmaster_br::Function, rho::T,
                 transf_op::T2, inv_transf_op::T2, ::Nothing;
-                kwargs...) where {T<:Ket,T2<:DenseOperator}
+                kwargs...) where {T<:Ket,T2<:Operator}
     # Pre-allocate for in-place back-transformation from eigenbasis
     rho_out = copy(transf_op)
     tmp = copy(transf_op)
@@ -222,7 +222,7 @@ end
 # Integrate with given fout
 function integrate_br(tspan::Vector{Float64}, dmaster_br::Function, rho::T,
                 transf_op::T2, inv_transf_op::T2, fout::Function;
-                kwargs...) where {T<:Ket,T2<:DenseOperator}
+                kwargs...) where {T<:Ket,T2<:Operator}
     # Pre-allocate for in-place back-transformation from eigenbasis
     rho_out = copy(transf_op)
     tmp = copy(transf_op)

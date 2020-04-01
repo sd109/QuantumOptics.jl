@@ -449,26 +449,26 @@ Check input of mcwf.
 function check_mcwf(psi0::Ket{B}, H::AbstractOperator{B,B}, J::Vector, Jdagger::Vector, rates::DecayRates) where B<:Basis
     # TODO: replace type checks by dispatch; make types of J known
     isreducible = true
-    if !(isa(H, DenseOperator) || isa(H, SparseOperator))
+    if !(isa(H, DenseOpType) || isa(H, SparseOpType))
         isreducible = false
     end
     for j=J
         @assert isa(j, AbstractOperator{B,B})
-        if !(isa(j, DenseOperator) || isa(j, SparseOperator))
+        if !(isa(j, DenseOpType) || isa(j, SparseOpType))
             isreducible = false
         end
     end
     for j=Jdagger
         @assert isa(j, AbstractOperator{B,B})
-        if !(isa(j, DenseOperator) || isa(j, SparseOperator))
+        if !(isa(j, DenseOpType) || isa(j, SparseOpType))
             isreducible = false
         end
     end
     @assert length(J) == length(Jdagger)
-    if typeof(rates) == Matrix{Float64}
+    if isa(rates, Matrix)
         throw(ArgumentError("Matrix of decay rates not supported for MCWF!
             Use diagonaljumps(rates, J) to calculate new rates and jump operators."))
-    elseif typeof(rates) == Vector{Float64}
+    elseif isa(rates, Vector)
         @assert length(rates) == length(J)
     end
     isreducible

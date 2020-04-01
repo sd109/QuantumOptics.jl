@@ -11,7 +11,7 @@ function master_h(tspan, rho0::T, H::AbstractOperator{B,B}, J::Vector;
                 rates::DecayRates=nothing,
                 Jdagger::Vector=dagger.(J),
                 fout::Union{Function,Nothing}=nothing,
-                kwargs...) where {B<:Basis,T<:DenseOperator{B,B}}
+                kwargs...) where {B<:Basis,T<:Operator{B,B}}
     check_master(rho0, H, J, Jdagger, rates)
     tmp = copy(rho0)
     dmaster_(t, rho::T, drho::T) = dmaster_h(rho, H, rates, J, Jdagger, drho, tmp)
@@ -34,7 +34,7 @@ function master_nh(tspan, rho0::T, Hnh::AbstractOperator{B,B}, J::Vector;
                 Hnhdagger::AbstractOperator=dagger(Hnh),
                 Jdagger::Vector=dagger.(J),
                 fout::Union{Function,Nothing}=nothing,
-                kwargs...) where {B<:Basis,T<:DenseOperator{B,B}}
+                kwargs...) where {B<:Basis,T<:Operator{B,B}}
     check_master(rho0, Hnh, J, Jdagger, rates)
     tmp = copy(rho0)
     dmaster_(t, rho::T, drho::T) = dmaster_nh(rho, Hnh, Hnhdagger, rates, J, Jdagger, drho, tmp)
@@ -77,7 +77,7 @@ function master(tspan, rho0::T, H::AbstractOperator{B,B}, J::Vector;
                 rates::DecayRates=nothing,
                 Jdagger::Vector=dagger.(J),
                 fout::Union{Function,Nothing}=nothing,
-                kwargs...) where {B<:Basis,T<:DenseOperator{B,B}}
+                kwargs...) where {B<:Basis,T<:Operator{B,B}}
     isreducible = check_master(rho0, H, J, Jdagger, rates)
     if !isreducible
         tmp = copy(rho0)
@@ -121,7 +121,7 @@ at [`master_dynamic`](@ref).
 function master_nh_dynamic(tspan, rho0::T, f::Function;
                 rates::DecayRates=nothing,
                 fout::Union{Function,Nothing}=nothing,
-                kwargs...) where {B<:Basis,T<:DenseOperator{B,B}}
+                kwargs...) where {B<:Basis,T<:Operator{B,B}}
     tmp = copy(rho0)
     dmaster_(t, rho::T, drho::T) = dmaster_nh_dynamic(t, rho, f, rates, drho, tmp)
     integrate_master(tspan, dmaster_, rho0, fout; kwargs...)
@@ -155,7 +155,7 @@ operators:
 function master_dynamic(tspan, rho0::T, f::Function;
                 rates::DecayRates=nothing,
                 fout::Union{Function,Nothing}=nothing,
-                kwargs...) where {B<:Basis,T<:DenseOperator{B,B}}
+                kwargs...) where {B<:Basis,T<:Operator{B,B}}
     tmp = copy(rho0)
     dmaster_(t, rho::T, drho::T) = dmaster_h_dynamic(t, rho, f, rates, drho, tmp)
     integrate_master(tspan, dmaster_, rho0, fout; kwargs...)
@@ -171,13 +171,13 @@ master_nh_dynamic(tspan, psi0::Ket{B}, f::Function; kwargs...) where B<:Basis = 
 
 
 # Recasting needed for the ODE solver is just providing the underlying data
-function recast!(x::T, rho::DenseOperator{B,B,T}) where {B<:Basis,T<:Matrix{ComplexF64}}
+function recast!(x::T, rho::Operator{B,B,T}) where {B<:Basis,T}
     rho.data = x
 end
-recast!(rho::DenseOperator{B,B,T}, x::T) where {B<:Basis,T<:Matrix{ComplexF64}} = nothing
+recast!(rho::Operator{B,B,T}, x::T) where {B<:Basis,T} = nothing
 
 function integrate_master(tspan, df::Function, rho0::T,
-                        fout::Union{Nothing, Function}; kwargs...) where {B<:Basis,T<:DenseOperator{B,B}}
+                        fout::Union{Nothing, Function}; kwargs...) where {B<:Basis,T<:Operator{B,B}}
     tspan_ = convert(Vector{Float64}, tspan)
     x0 = rho0.data
     state = T(rho0.basis_l, rho0.basis_r, rho0.data)
@@ -197,7 +197,7 @@ end
 
 function dmaster_h(rho::T, H::AbstractOperator{B,B},
                     rates::Nothing, J::Vector, Jdagger::Vector,
-                    drho::T, tmp::T) where {B<:Basis,T<:DenseOperator{B,B}}
+                    drho::T, tmp::T) where {B<:Basis,T<:Operator{B,B}}
     QuantumOpticsBase.mul!(drho,H,rho,-1im,0)
     QuantumOpticsBase.mul!(drho,rho,H,1im,1)
     for i=1:length(J)
@@ -214,7 +214,7 @@ end
 
 function dmaster_h(rho::T, H::AbstractOperator{B,B},
                     rates::Vector{Float64}, J::Vector, Jdagger::Vector,
-                    drho::T, tmp::T) where {B<:Basis,T<:DenseOperator{B,B}}
+                    drho::T, tmp::T) where {B<:Basis,T<:Operator{B,B}}
     QuantumOpticsBase.mul!(drho,H,rho,-1im,0)
     QuantumOpticsBase.mul!(drho,rho,H,1im,1)
     for i=1:length(J)
@@ -231,7 +231,7 @@ end
 
 function dmaster_h(rho::T, H::AbstractOperator{B,B},
                     rates::Matrix{Float64}, J::Vector, Jdagger::Vector,
-                    drho::T, tmp::T) where {B<:Basis,T<:DenseOperator{B,B}}
+                    drho::T, tmp::T) where {B<:Basis,T<:Operator{B,B}}
     QuantumOpticsBase.mul!(drho,H,rho,-1im,0)
     QuantumOpticsBase.mul!(drho,rho,H,1im,1)
     for j=1:length(J), i=1:length(J)
@@ -248,7 +248,7 @@ end
 
 function dmaster_nh(rho::T1, Hnh::T2, Hnh_dagger::T2,
                     rates::Nothing, J::Vector, Jdagger::Vector,
-                    drho::T1, tmp::T1) where {B<:Basis,T1<:DenseOperator{B,B},T2<:AbstractOperator{B,B}}
+                    drho::T1, tmp::T1) where {B<:Basis,T1<:Operator{B,B},T2<:AbstractOperator{B,B}}
     QuantumOpticsBase.mul!(drho,Hnh,rho,-1im,0)
     QuantumOpticsBase.mul!(drho,rho,Hnh_dagger,1im,1)
     for i=1:length(J)
@@ -260,7 +260,7 @@ end
 
 function dmaster_nh(rho::T1, Hnh::T2, Hnh_dagger::T2,
                     rates::Vector{Float64}, J::Vector, Jdagger::Vector,
-                    drho::T1, tmp::T1) where {B<:Basis,T1<:DenseOperator{B,B},T2<:AbstractOperator{B,B}}
+                    drho::T1, tmp::T1) where {B<:Basis,T1<:Operator{B,B},T2<:AbstractOperator{B,B}}
     QuantumOpticsBase.mul!(drho,Hnh,rho,-1im,0)
     QuantumOpticsBase.mul!(drho,rho,Hnh_dagger,1im,1)
     for i=1:length(J)
@@ -272,7 +272,7 @@ end
 
 function dmaster_nh(rho::T1, Hnh::T2, Hnh_dagger::T2,
                     rates::Matrix{Float64}, J::Vector, Jdagger::Vector,
-                    drho::T1, tmp::T1) where {B<:Basis,T1<:DenseOperator{B,B},T2<:AbstractOperator{B,B}}
+                    drho::T1, tmp::T1) where {B<:Basis,T1<:Operator{B,B},T2<:AbstractOperator{B,B}}
     QuantumOpticsBase.mul!(drho,Hnh,rho,-1im,0)
     QuantumOpticsBase.mul!(drho,rho,Hnh_dagger,1im,1)
     for j=1:length(J), i=1:length(J)
@@ -284,7 +284,7 @@ end
 
 function dmaster_h_dynamic(t::Float64, rho::T, f::Function,
                     rates::DecayRates,
-                    drho::T, tmp::T) where {B<:Basis,T<:DenseOperator{B,B}}
+                    drho::T, tmp::T) where {B<:Basis,T<:Operator{B,B}}
     result = f(t, rho)
     QO_CHECKS[] && @assert 3 <= length(result) <= 4
     if length(result) == 3
@@ -299,7 +299,7 @@ end
 
 function dmaster_nh_dynamic(t::Float64, rho::T, f::Function,
                     rates::DecayRates,
-                    drho::T, tmp::T) where {B<:Basis,T<:DenseOperator{B,B}}
+                    drho::T, tmp::T) where {B<:Basis,T<:Operator{B,B}}
     result = f(t, rho)
     QO_CHECKS[] && @assert 4 <= length(result) <= 5
     if length(result) == 4
@@ -313,30 +313,30 @@ function dmaster_nh_dynamic(t::Float64, rho::T, f::Function,
 end
 
 
-function check_master(rho0::DenseOperator{B,B}, H::AbstractOperator{B,B}, J::Vector, Jdagger::Vector, rates::DecayRates) where B<:Basis
+function check_master(rho0::Operator{B,B}, H::AbstractOperator{B,B}, J::Vector, Jdagger::Vector, rates::DecayRates) where B<:Basis
     # TODO: clean up type checks by dispatch; make type of J known
     isreducible = true # test if all operators are sparse or dense
-    if !(isa(H, DenseOperator) || isa(H, SparseOperator))
+    if !(isa(H, DenseOpType) || isa(H, SparseOpType))
         isreducible = false
     end
     for j=J
         @assert isa(j, AbstractOperator{B,B})
-        if !(isa(j, DenseOperator) || isa(j, SparseOperator))
+        if !(isa(j, DenseOpType) || isa(j, SparseOpType))
             isreducible = false
         end
         check_samebases(rho0, j)
     end
     for j=Jdagger
         @assert isa(j, AbstractOperator{B,B})
-        if !(isa(j, DenseOperator) || isa(j, SparseOperator))
+        if !(isa(j, DenseOpType) || isa(j, SparseOpType))
             isreducible = false
         end
         check_samebases(rho0, j)
     end
     @assert length(J)==length(Jdagger)
-    if typeof(rates) == Matrix{Float64}
+    if isa(rates,Matrix)
         @assert size(rates, 1) == size(rates, 2) == length(J)
-    elseif typeof(rates) == Vector{Float64}
+    elseif isa(rates,Vector)
         @assert length(rates) == length(J)
     end
     isreducible

@@ -27,7 +27,7 @@ Calculate steady state using long time master equation evolution.
 * `kwargs...`: Further arguments are passed on to the ode solver.
 """
 function master(H::AbstractOperator{B,B}, J::Vector;
-                rho0::DenseOperator{B,B}=tensor(basisstate(H.basis_l, 1), dagger(basisstate(H.basis_r, 1))),
+                rho0::Operator{B,B}=tensor(basisstate(H.basis_l, 1), dagger(basisstate(H.basis_r, 1))),
                 hmin=1e-7, tol=1e-3,
                 rates::Union{Vector{Float64}, Matrix{Float64}, Nothing}=nothing,
                 Jdagger::Vector=dagger.(J),
@@ -56,10 +56,10 @@ sorted according to the absolute value of the eigenvalues.
     function (ineffective for DenseSuperOperator).
 * `kwargs...`:  Keyword arguments for the Julia `eigen` or `eigens` function.
 """
-function liouvillianspectrum(L::DenseSuperOperator; nev::Int = min(10, length(L.basis_r[1])*length(L.basis_r[2])), which::Symbol = :LR, kwargs...)
+function liouvillianspectrum(L::DenseSuperOpType; nev::Int = min(10, length(L.basis_r[1])*length(L.basis_r[2])), which::Symbol = :LR, kwargs...)
     d, v = eigen(L.data; kwargs...)
     indices = sortperm(abs.(d))[1:nev]
-    ops = DenseOperator[]
+    ops = DenseOpType[]
     for i in indices
         data = reshape(v[:,i], length(L.basis_r[1]), length(L.basis_r[2]))
         op = DenseOperator(L.basis_r[1], L.basis_r[2], data)
@@ -68,7 +68,7 @@ function liouvillianspectrum(L::DenseSuperOperator; nev::Int = min(10, length(L.
     return d[indices], ops
 end
 
-function liouvillianspectrum(L::SparseSuperOperator; nev::Int = min(10, length(L.basis_r[1])*length(L.basis_r[2])), which::Symbol = :LR, kwargs...)
+function liouvillianspectrum(L::SparseSuperOpType; nev::Int = min(10, length(L.basis_r[1])*length(L.basis_r[2])), which::Symbol = :LR, kwargs...)
     d, v, nconv, niter, nmult, resid = try
         eigs(L.data; nev = nev, which = which, kwargs...)
     catch err
@@ -79,7 +79,7 @@ function liouvillianspectrum(L::SparseSuperOperator; nev::Int = min(10, length(L
         end
     end
     indices = sortperm(abs.(d))[1:nev]
-    ops = DenseOperator[]
+    ops = DenseOpType[]
     for i in indices
         data = reshape(v[:,i], length(L.basis_r[1]), length(L.basis_r[2]))
         op = DenseOperator(L.basis_r[1], L.basis_r[2], data)

@@ -117,7 +117,7 @@ semiclassical.schroedinger_dynamic(T, state0, fquantum_schroedinger, fclassical;
 tout, state_t = semiclassical.schroedinger_dynamic(T, state0, fquantum_schroedinger, fclassical)
 f(T[end], state_t[end])
 
-function f(t, state::semiclassical.State{B,T}) where {B<:Basis,T<:DenseOperator{B,B}}
+function f(t, state::semiclassical.State{B,T}) where {B<:Basis,T<:DenseOpType{B,B}}
     @test 1e-5 > tracedistance(state.quantum, dm(U(t)*psi0))
     @test 1e-5 > abs(state.classical[1] - state0.classical[1]*exp(-t))
 end
