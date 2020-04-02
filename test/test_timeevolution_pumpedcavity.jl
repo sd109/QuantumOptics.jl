@@ -45,6 +45,18 @@ timeevolution.master(T, psi0, Hint, []; fout=f_test)
 timeevolution.master_h(T, psi0, Hint, []; fout=f_test)
 timeevolution.master_nh(T, psi0, Hint, []; fout=f_test)
 
+f_test_sparse(t, rho) = @test 1e-5 > tracedistance(dense(rho), dm(coherentstate(b, α(t, α0, δc, 0))))
+rho0 = sparse(dm(psi0))
+timeevolution.master(T, rho0, Hint, []; fout=f_test_sparse)
+_, rhot = timeevolution.master(T, rho0, Hint, [])
+@test eltype(rhot) <: SparseOpType
+_, rhot = timeevolution.master(T, rho0, dense(Hint), [])
+@test eltype(rhot) <: SparseOpType
+_, rhot = timeevolution.master(T, rho0, Hint, [a])
+@test eltype(rhot) <: SparseOpType
+_, rhot = timeevolution.master(T, rho0, Hint, [dense(a)])
+@test eltype(rhot) <: SparseOpType
+
 # No decay, rotating
 f_test_td(t, psi::Ket) = @test 1e-5 > D(psi, coherentstate(b, α(t, α0, δc, 0)*exp(-1im*ω*t)))
 f_test_td(t, rho::DenseOpType) = @test 1e-5 > D(rho, dm(coherentstate(b, α(t, α0, δc, 0)*exp(-1im*ω*t))))
