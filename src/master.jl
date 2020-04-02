@@ -246,9 +246,9 @@ function dmaster_h(rho::T, H::AbstractOperator{B,B},
     return drho
 end
 
-function dmaster_nh(rho::T1, Hnh::T2, Hnh_dagger::T2,
+function dmaster_nh(rho::T, Hnh::AbstractOperator{B,B}, Hnh_dagger::AbstractOperator{B,B},
                     rates::Nothing, J::Vector, Jdagger::Vector,
-                    drho::T1, tmp::T1) where {B<:Basis,T1<:Operator{B,B},T2<:AbstractOperator{B,B}}
+                    drho::T, tmp::T) where {B<:Basis,T<:Operator{B,B}}
     QuantumOpticsBase.mul!(drho,Hnh,rho,-1im,0)
     QuantumOpticsBase.mul!(drho,rho,Hnh_dagger,1im,1)
     for i=1:length(J)
@@ -258,9 +258,9 @@ function dmaster_nh(rho::T1, Hnh::T2, Hnh_dagger::T2,
     return drho
 end
 
-function dmaster_nh(rho::T1, Hnh::T2, Hnh_dagger::T2,
+function dmaster_nh(rho::T, Hnh::AbstractOperator{B,B}, Hnh_dagger::AbstractOperator{B,B},
                     rates::Vector, J::Vector, Jdagger::Vector,
-                    drho::T1, tmp::T1) where {B<:Basis,T1<:Operator{B,B},T2<:AbstractOperator{B,B}}
+                    drho::T, tmp::T) where {B<:Basis,T<:Operator{B,B}}
     QuantumOpticsBase.mul!(drho,Hnh,rho,-1im,0)
     QuantumOpticsBase.mul!(drho,rho,Hnh_dagger,1im,1)
     for i=1:length(J)
@@ -270,9 +270,9 @@ function dmaster_nh(rho::T1, Hnh::T2, Hnh_dagger::T2,
     return drho
 end
 
-function dmaster_nh(rho::T1, Hnh::T2, Hnh_dagger::T2,
+function dmaster_nh(rho::T, Hnh::AbstractOperator{B,B}, Hnh_dagger::AbstractOperator{B,B},
                     rates::Matrix, J::Vector, Jdagger::Vector,
-                    drho::T1, tmp::T1) where {B<:Basis,T1<:Operator{B,B},T2<:AbstractOperator{B,B}}
+                    drho::T, tmp::T) where {B<:Basis,T<:Operator{B,B}}
     QuantumOpticsBase.mul!(drho,Hnh,rho,-1im,0)
     QuantumOpticsBase.mul!(drho,rho,Hnh_dagger,1im,1)
     for j=1:length(J), i=1:length(J)
