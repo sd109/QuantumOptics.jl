@@ -46,11 +46,13 @@ Jlazy = [LazyTensor(basis, 1, sqrt(γ)*sm), LazyTensor(basis, 2, sqrt(κ)*destro
 
 
 # Test mcwf
+@test timeevolution.check_mcwf(Ψ₀, Hdense, Jdense, dagger.(Jdense), nothing)
 tout, Ψt = timeevolution.mcwf(T, Ψ₀, Hdense, Jdense; seed=UInt(1), reltol=1e-7)
 tout2, Ψt2 = timeevolution.mcwf(T, Ψ₀, Hdense, Jdense; seed=UInt(1), reltol=1e-7)
 @test Ψt == Ψt2
 Ψ = Ψt[end]
 
+@test timeevolution.check_mcwf(Ψ₀, H, J, dagger.(J), nothing)
 tout, Ψt = timeevolution.mcwf(T, Ψ₀, H, J; seed=UInt(1), reltol=1e-6)
 @test norm(Ψt[end]-Ψ) < 1e-5
 

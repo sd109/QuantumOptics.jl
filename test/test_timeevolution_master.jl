@@ -57,10 +57,12 @@ end
 @test tracedistance(L*ρ₀, ρ) < 1e-10
 
 # Test master
+@test timeevolution.check_master(ρ₀, Hdense, Jdense, dagger.(Jdense), nothing)
 tout, ρt = timeevolution.master(T, ρ₀, Hdense, Jdense; reltol=1e-7)
 ρ = ρt[end]
 @test tracedistance(exp(dense(L)*T[end])*ρ₀, ρt[end]) < 1e-6
 
+@test timeevolution.check_master(ρ₀, H, J, dagger.(J), nothing)
 tout, ρt = timeevolution.master(T, ρ₀, H, J; reltol=1e-6)
 @test tracedistance(ρt[end], ρ) < 1e-5
 
