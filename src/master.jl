@@ -202,11 +202,11 @@ function dmaster_h(rho::T, H::AbstractOperator{B,B},
     QuantumOpticsBase.mul!(drho,rho,H,1im,1)
     for i=1:length(J)
         QuantumOpticsBase.mul!(tmp,J[i],rho)
-        QuantumOpticsBase.mul!(drho,tmp,Jdagger[i],1,1)
+        QuantumOpticsBase.mul!(drho,tmp,Jdagger[i],true,true)
 
         QuantumOpticsBase.mul!(drho,Jdagger[i],tmp,-0.5,1)
 
-        QuantumOpticsBase.mul!(tmp,rho,Jdagger[i],1.,0)
+        QuantumOpticsBase.mul!(tmp,rho,Jdagger[i],true,false)
         QuantumOpticsBase.mul!(drho,tmp,J[i],-0.5,1)
     end
     return drho
@@ -219,7 +219,7 @@ function dmaster_h(rho::T, H::AbstractOperator{B,B},
     QuantumOpticsBase.mul!(drho,rho,H,1im,1)
     for i=1:length(J)
         QuantumOpticsBase.mul!(tmp,J[i],rho,rates[i],0)
-        QuantumOpticsBase.mul!(drho,tmp,Jdagger[i],1,1)
+        QuantumOpticsBase.mul!(drho,tmp,Jdagger[i],true,true)
 
         QuantumOpticsBase.mul!(drho,Jdagger[i],tmp,-0.5,1)
 
@@ -236,7 +236,7 @@ function dmaster_h(rho::T, H::AbstractOperator{B,B},
     QuantumOpticsBase.mul!(drho,rho,H,1im,1)
     for j=1:length(J), i=1:length(J)
         QuantumOpticsBase.mul!(tmp,J[i],rho,rates[i,j],0)
-        QuantumOpticsBase.mul!(drho,tmp,Jdagger[j],1,1)
+        QuantumOpticsBase.mul!(drho,tmp,Jdagger[j],true,true)
 
         QuantumOpticsBase.mul!(drho,Jdagger[j],tmp,-0.5,1)
 
@@ -253,7 +253,7 @@ function dmaster_nh(rho::T, Hnh::AbstractOperator{B,B}, Hnh_dagger::AbstractOper
     QuantumOpticsBase.mul!(drho,rho,Hnh_dagger,1im,1)
     for i=1:length(J)
         QuantumOpticsBase.mul!(tmp,J[i],rho)
-        QuantumOpticsBase.mul!(drho,tmp,Jdagger[i],1,1)
+        QuantumOpticsBase.mul!(drho,tmp,Jdagger[i],true,true)
     end
     return drho
 end
@@ -265,7 +265,7 @@ function dmaster_nh(rho::T, Hnh::AbstractOperator{B,B}, Hnh_dagger::AbstractOper
     QuantumOpticsBase.mul!(drho,rho,Hnh_dagger,1im,1)
     for i=1:length(J)
         QuantumOpticsBase.mul!(tmp,J[i],rho,rates[i],0)
-        QuantumOpticsBase.mul!(drho,tmp,Jdagger[i],1,1)
+        QuantumOpticsBase.mul!(drho,tmp,Jdagger[i],true,true)
     end
     return drho
 end
@@ -277,7 +277,7 @@ function dmaster_nh(rho::T, Hnh::AbstractOperator{B,B}, Hnh_dagger::AbstractOper
     QuantumOpticsBase.mul!(drho,rho,Hnh_dagger,1im,1)
     for j=1:length(J), i=1:length(J)
         QuantumOpticsBase.mul!(tmp,J[i],rho,rates[i,j],0)
-        QuantumOpticsBase.mul!(drho,tmp,Jdagger[j],1,1)
+        QuantumOpticsBase.mul!(drho,tmp,Jdagger[j],true,true)
     end
     return drho
 end
