@@ -16,7 +16,9 @@ function schroedinger(tspan, psi0::T, H::AbstractOperator{B,B};
                 fout::Union{Function,Nothing}=nothing,
                 kwargs...) where {B<:Basis,T<:StateVector{B}}
     tspan_ = convert(Vector{Float64}, tspan)
-    dschroedinger_(t::Float64, psi::T, dpsi::T) = dschroedinger(psi, H, dpsi)
+    dType = promote_type(eltype(psi0),eltype(H))
+    @assert dType <: Complex
+    dschroedinger_(t::Float64, psi::T, dpsi::T) = dschroedinger(psi, H, dpsi, dType)
     x0 = psi0.data
     state = T(psi0.basis, psi0.data)
     dstate = T(psi0.basis, psi0.data)
@@ -54,13 +56,13 @@ recast!(x::D, psi::StateVector{B,D}) where {B<:Basis, D} = (psi.data = x);
 recast!(psi::StateVector{B,D}, x::D) where {B<:Basis, D} = nothing
 
 
-function dschroedinger(psi::Ket{B}, H::AbstractOperator{B,B}, dpsi::Ket{B}) where B<:Basis
-    QuantumOpticsBase.mul!(dpsi,H,psi,complex(0,-1.),complex(0.))
+function dschroedinger(psi::Ket{B}, H::AbstractOperator{B,B}, dpsi::Ket{B}, dType=ComplexF64) where B<:Basis
+    QuantumOpticsBase.mul!(dpsi,H,psi,dType(-im),zero(dType))
     return dpsi
 end
 
-function dschroedinger(psi::Bra{B}, H::AbstractOperator{B,B}, dpsi::Bra{B}) where B<:Basis
-    QuantumOpticsBase.mul!(dpsi,psi,H,complex(0,1.),complex(0.))
+function dschroedinger(psi::Bra{B}, H::AbstractOperator{B,B}, dpsi::Bra{B}, dType=ComplexF64) where B<:Basis
+    QuantumOpticsBase.mul!(dpsi,psi,H,dType(im),zero(dType))
     return dpsi
 end
 

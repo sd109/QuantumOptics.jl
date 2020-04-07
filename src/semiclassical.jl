@@ -34,7 +34,7 @@ end
 
 Base.length(state::State) = length(state.quantum) + length(state.classical)
 Base.copy(state::State) = State(copy(state.quantum), copy(state.classical))
-Base.eltype(state::State) = eltype(state.quantum)
+Base.eltype(state::State) = promote_type(eltype(state.quantum),eltype(state.classical))
 normalize!(state::State{B,T}) where {B,T<:Ket} = normalize!(state.quantum)
 normalize(state::T) where {B,K<:Ket,T<:State{B,K}} = State(normalize(state.quantum),copy(state.classical))
 
@@ -111,7 +111,7 @@ function master_dynamic(tspan, state0::State{B,T}, fquantum, fclassical;
     function dmaster_(t::Float64, state::S, dstate::S) where {B<:Basis,T<:Operator{B,B},S<:State{B,T}}
         dmaster_h_dynamic(t, state, fquantum, fclassical, rates, dstate, tmp)
     end
-    x0 = Vector{ComplexF64}(undef, length(state0))
+    x0 = Vector{eltype(state0)}(undef, length(state0))
     recast!(state0, x0)
     state = copy(state0)
     dstate = copy(state0)
@@ -162,7 +162,7 @@ function mcwf_dynamic(tspan, psi0::State{B,T}, fquantum, fclassical, fjump_class
         dmcwf_h_dynamic(t, psi, fquantum, fclassical, rates, dpsi, tmp)
     end
     j_(rng, t::Float64, psi, psi_new) = jump_dynamic(rng, t, psi, fquantum, fclassical, fjump_classical, psi_new, rates)
-    x0 = Vector{ComplexF64}(undef, length(psi0))
+    x0 = Vector{eltype(psi0)}(undef, length(psi0))
     recast!(psi0, x0)
     psi = copy(psi0)
     dpsi = copy(psi0)
@@ -225,7 +225,7 @@ function jump_callback(jumpfun::Function, seed, scb, save_before!::Function,
     rng = MersenneTwister(convert(UInt, seed))
     jumpnorm = Ref(rand(rng))
     n = length(psi0.quantum)
-    djumpnorm(x::Vector{ComplexF64}, t::Float64, integrator) = norm(x[1:n])^2 - (1-jumpnorm[])
+    djumpnorm(x::Vector, t::Float64, integrator) = norm(x[1:n])^2 - (1-jumpnorm[])
 
     function dojump(integrator)
         x = integrator.u

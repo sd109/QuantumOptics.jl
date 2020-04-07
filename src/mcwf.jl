@@ -17,8 +17,11 @@ function mcwf_h(tspan, psi0::T, H::AbstractOperator{B,B}, J::Vector;
         display_beforeevent=false, display_afterevent=false,
         kwargs...) where {B<:Basis,T<:Ket{B}}
     check_mcwf(psi0, H, J, Jdagger, rates)
-    f(t::Float64, psi::T, dpsi::T) = dmcwf_h(psi, H, J, Jdagger, dpsi, tmp, rates)
-    j(rng, t::Float64, psi::T, psi_new::T) = jump(rng, t, psi, J, psi_new, rates)
+    dType = get_type(psi0,H,rates,J,Jdagger)
+    @assert dType <: Complex
+    rates_ = isa(rates,Nothing) ? rates : dType.(rates)
+    f(t::Float64, psi::T, dpsi::T) = dmcwf_h(psi, H, J, Jdagger, dpsi, tmp, rates_, dType)
+    j(rng, t::Float64, psi::T, psi_new::T) = jump(rng, t, psi, J, psi_new, rates_, dType)
     integrate_mcwf(f, j, tspan, psi0, seed, fout;
         display_beforeevent=display_beforeevent,
         display_afterevent=display_afterevent,
@@ -41,8 +44,10 @@ function mcwf_nh(tspan, psi0::T, Hnh::AbstractOperator{B,B}, J::Vector;
         display_beforeevent=false, display_afterevent=false,
         kwargs...) where {B<:Basis,T<:Ket{B}}
     check_mcwf(psi0, Hnh, J, J, nothing)
-    f(t::Float64, psi::T, dpsi::T) = dmcwf_nh(psi, Hnh, dpsi)
-    j(rng, t::Float64, psi::T, psi_new::T) = jump(rng, t, psi, J, psi_new, nothing)
+    dType = promote_type(eltype(psi0),eltype(Hnh),eltype.(J)...)
+    @assert dType <: Complex
+    f(t::Float64, psi::T, dpsi::T) = dmcwf_nh(psi, Hnh, dpsi, dType)
+    j(rng, t::Float64, psi::T, psi_new::T) = jump(rng, t, psi, J, psi_new, nothing, dType)
     integrate_mcwf(f, j, tspan, psi0, seed, fout;
         display_beforeevent=display_beforeevent,
         display_afterevent=display_afterevent,
@@ -93,10 +98,13 @@ function mcwf(tspan, psi0::T, H::AbstractOperator{B,B}, J::Vector;
         display_beforeevent=false, display_afterevent=false,
         kwargs...) where {B<:Basis,T<:Ket{B}}
     isreducible = check_mcwf(psi0, H, J, Jdagger, rates)
+    dType = get_type(psi0,H,rates,J,Jdagger)
+    @assert dType <: Complex
+    rates_ = isa(rates,Nothing) ? rates : dType.(rates)
     if !isreducible
         tmp = copy(psi0)
-        dmcwf_h_(t::Float64, psi::T, dpsi::T) = dmcwf_h(psi, H, J, Jdagger, dpsi, tmp, rates)
-        j_h(rng, t::Float64, psi::T, psi_new::T) = jump(rng, t, psi, J, psi_new, rates)
+        dmcwf_h_(t::Float64, psi::T, dpsi::T) = dmcwf_h(psi, H, J, Jdagger, dpsi, tmp, rates_, dType)
+        j_h(rng, t::Float64, psi::T, psi_new::T) = jump(rng, t, psi, J, psi_new, rates_, dType)
         integrate_mcwf(dmcwf_h_, j_h, tspan, psi0, seed,
             fout;
             display_beforeevent=display_beforeevent,
@@ -104,17 +112,17 @@ function mcwf(tspan, psi0::T, H::AbstractOperator{B,B}, J::Vector;
             kwargs...)
     else
         Hnh = copy(H)
-        if typeof(rates) == Nothing
+        if isa(rates_, Nothing)
             for i=1:length(J)
-                Hnh -= 0.5im*Jdagger[i]*J[i]
+                Hnh -= dType(0.5im)*Jdagger[i]*J[i]
             end
         else
             for i=1:length(J)
-                Hnh -= 0.5im*rates[i]*Jdagger[i]*J[i]
+                Hnh -= dType(0.5im*rates_[i])*Jdagger[i]*J[i]
             end
         end
-        dmcwf_nh_(t::Float64, psi::T, dpsi::T) = dmcwf_nh(psi, Hnh, dpsi)
-        j_nh(rng, t::Float64, psi::T, psi_new::T) = jump(rng, t, psi, J, psi_new, rates)
+        dmcwf_nh_(t::Float64, psi::T, dpsi::T) = dmcwf_nh(psi, Hnh, dpsi, dType)
+        j_nh(rng, t::Float64, psi::T, psi_new::T) = jump(rng, t, psi, J, psi_new, rates_, dType)
         integrate_mcwf(dmcwf_nh_, j_nh, tspan, psi0, seed,
             fout;
             display_beforeevent=display_beforeevent,
@@ -331,7 +339,7 @@ function jump_callback(jumpfun::Function, seed, scb, save_before!::Function,
 
     rng = MersenneTwister(convert(UInt, seed))
     jumpnorm = Ref(rand(rng))
-    djumpnorm(x::Vector{ComplexF64}, t::Float64, integrator) = norm(x)^2 - (1-jumpnorm[])
+    djumpnorm(x::Vector, t::Float64, integrator) = norm(x)^2 - (1-jumpnorm[])
 
     function dojump(integrator)
         x = integrator.u
@@ -366,40 +374,40 @@ Default jump function.
 * `J`: List of jump operators.
 * `psi_new`: Result of jump.
 """
-function jump(rng, t::Float64, psi::T, J::Vector, psi_new::T, rates::Nothing) where T<:Ket
+function jump(rng, t::Float64, psi::T, J::Vector, psi_new::T, rates::Nothing, dType=ComplexF64) where T<:Ket
     if length(J)==1
-        QuantumOpticsBase.mul!(psi_new,J[1],psi,complex(1.),complex(0.))
+        QuantumOpticsBase.mul!(psi_new,J[1],psi,true,false)
         psi_new.data ./= norm(psi_new)
         i=1
     else
         probs = zeros(Float64, length(J))
         for i=1:length(J)
-            QuantumOpticsBase.mul!(psi_new,J[i],psi,complex(1.),complex(0.))
+            QuantumOpticsBase.mul!(psi_new,J[i],psi,true,false)
             probs[i] = dot(psi_new.data, psi_new.data)
         end
         cumprobs = cumsum(probs./sum(probs))
         r = rand(rng)
         i = findfirst(cumprobs.>r)
-        QuantumOpticsBase.mul!(psi_new,J[i],psi,complex(1.)/sqrt(probs[i]),complex(0.))
+        QuantumOpticsBase.mul!(psi_new,J[i],psi,dType(one(dType)/sqrt(probs[i])),zero(dType))
     end
     return i
 end
 
-function jump(rng, t::Float64, psi::T, J::Vector, psi_new::T, rates::Vector) where T<:Ket
+function jump(rng, t::Float64, psi::T, J::Vector, psi_new::T, rates::Vector, dType=ComplexF64) where T<:Ket
     if length(J)==1
-        QuantumOpticsBase.mul!(psi_new,J[1],psi,complex(sqrt(rates[1])),complex(0.))
+        QuantumOpticsBase.mul!(psi_new,J[1],psi,sqrt(rates[1]),zero(dType))
         psi_new.data ./= norm(psi_new)
         i=1
     else
         probs = zeros(Float64, length(J))
         for i=1:length(J)
-            QuantumOpticsBase.mul!(psi_new,J[i],psi,complex(sqrt(rates[i])),complex(0.))
+            QuantumOpticsBase.mul!(psi_new,J[i],psi,sqrt(rates[i]),zero(dType))
             probs[i] = dot(psi_new.data, psi_new.data)
         end
         cumprobs = cumsum(probs./sum(probs))
         r = rand(rng)
         i = findfirst(cumprobs.>r)
-        QuantumOpticsBase.mul!(psi_new,J[i],psi,complex(sqrt(rates[i]/probs[i])),complex(0.))
+        QuantumOpticsBase.mul!(psi_new,J[i],psi,dType(sqrt(rates[i]/probs[i])),zero(dType))
     end
     return i
 end
@@ -411,21 +419,21 @@ The non-hermitian Hamiltonian is given in two parts - the hermitian part H and
 the jump operators J.
 """
 function dmcwf_h(psi::T, H::AbstractOperator{B,B},
-                 J::Vector, Jdagger::Vector, dpsi::T, tmp::T, rates::Nothing) where {B<:Basis,T<:Ket{B}}
-    QuantumOpticsBase.mul!(dpsi,H,psi,complex(0,-1.),complex(0.))
+                 J::Vector, Jdagger::Vector, dpsi::T, tmp::T, rates::Nothing, dType=ComplexF64) where {B<:Basis,T<:Ket{B}}
+    QuantumOpticsBase.mul!(dpsi,H,psi,dType(-im),zero(dType))
     for i=1:length(J)
-        QuantumOpticsBase.mul!(tmp,J[i],psi,complex(1.),complex(0.))
-        QuantumOpticsBase.mul!(dpsi,Jdagger[i],tmp,-complex(0.5,0.),complex(1.))
+        QuantumOpticsBase.mul!(tmp,J[i],psi,true,false)
+        QuantumOpticsBase.mul!(dpsi,Jdagger[i],tmp,dType(-0.5),one(dType))
     end
     return dpsi
 end
 
 function dmcwf_h(psi::T, H::AbstractOperator{B,B},
-                 J::Vector, Jdagger::Vector, dpsi::T, tmp::T, rates::Vector) where {B<:Basis,T<:Ket{B}}
-    QuantumOpticsBase.mul!(dpsi,H,psi,complex(0,-1.),complex(0.))
+                 J::Vector, Jdagger::Vector, dpsi::T, tmp::T, rates::Vector, dType=ComplexF64) where {B<:Basis,T<:Ket{B}}
+    QuantumOpticsBase.mul!(dpsi,H,psi,dType(-im),zero(dType))
     for i=1:length(J)
-        QuantumOpticsBase.mul!(tmp,J[i],psi,complex(rates[i]),complex(0.))
-        QuantumOpticsBase.mul!(dpsi,Jdagger[i],tmp,-complex(0.5,0.),complex(1.))
+        QuantumOpticsBase.mul!(tmp,J[i],psi,rates[i],zero(dType))
+        QuantumOpticsBase.mul!(dpsi,Jdagger[i],tmp,dType(-0.5),one(dType))
     end
     return dpsi
 end
@@ -436,8 +444,8 @@ Evaluate non-hermitian Schroedinger equation.
 
 The given Hamiltonian is already the non-hermitian version.
 """
-function dmcwf_nh(psi::T, Hnh::AbstractOperator{B,B}, dpsi::T) where {B<:Basis,T<:Ket{B}}
-    QuantumOpticsBase.mul!(dpsi,Hnh,psi,complex(0,-1.),complex(0.))
+function dmcwf_nh(psi::T, Hnh::AbstractOperator{B,B}, dpsi::T, dType=ComplexF64) where {B<:Basis,T<:Ket{B}}
+    QuantumOpticsBase.mul!(dpsi,Hnh,psi,dType(-im),zero(dType))
     return dpsi
 end
 
