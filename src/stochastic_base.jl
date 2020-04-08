@@ -8,12 +8,12 @@ const DiffArray{T} = Union{AbstractArray{T,1}, AbstractArray{T, 2}}
 
 
 """
-    integrate_stoch(tspan::Vector{Float64}, df::Function, dg::Vector{Function}, x0::Vector{ComplexF64},
+    integrate_stoch(tspan::Vector, df::Function, dg::Vector{Function}, x0::Vector{ComplexF64},
             state::T, dstate::T, fout::Function; kwargs...)
 
 Integrate using StochasticDiffEq
 """
-function integrate_stoch(tspan::Vector{Float64}, df::Function, dg::Function, x0::Vector,
+function integrate_stoch(tspan::Vector, df::Function, dg::Function, x0::Vector,
             state::T, dstate::T, fout::Function, n::Int;
             save_everystep = false, callback=nothing,
             alg::StochasticDiffEq.StochasticDiffEqAlgorithm=StochasticDiffEq.EM(),
@@ -35,7 +35,7 @@ function integrate_stoch(tspan::Vector{Float64}, df::Function, dg::Function, x0:
         dg(dx, t, state, dstate, n)
     end
 
-    function fout_(x::Vector, t::Float64, integrator)
+    function fout_(x::Vector, t, integrator)
         recast!(x, state)
         fout(t, state)
     end
@@ -58,7 +58,7 @@ function integrate_stoch(tspan::Vector{Float64}, df::Function, dg::Function, x0:
 
     out_type = pure_inference(fout, Tuple{eltype(tspan),typeof(state)})
 
-    out = DiffEqCallbacks.SavedValues(Float64,out_type)
+    out = DiffEqCallbacks.SavedValues(eltype(tspan),out_type)
 
     scb = DiffEqCallbacks.SavingCallback(fout_,out,saveat=tspan,
                                          save_everystep=save_everystep,
@@ -87,9 +87,9 @@ end
 
 Define fout if it was omitted.
 """
-function integrate_stoch(tspan::Vector{Float64}, df::Function, dg::Function, x0::Vector,
+function integrate_stoch(tspan::Vector, df::Function, dg::Function, x0::Vector,
     state::T, dstate::T, ::Nothing, n::Int; kwargs...) where T
-    function fout(t::Float64, state::T)
+    function fout(t, state::T)
         copy(state)
     end
     integrate_stoch(tspan, df, dg, x0, state, dstate, fout, n; kwargs...)

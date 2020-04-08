@@ -172,7 +172,7 @@ Time-evolution according to a Bloch-Redfield master equation.
         be changed.
 * `kwargs...`: Further arguments are passed on to the ode solver.
 """
-function master_bloch_redfield(tspan::Vector{Float64},
+function master_bloch_redfield(tspan,
         rho0::T, L::SuperOperator{Tuple{B,B},Tuple{B,B}},
         H::AbstractOperator{B,B}; fout::Union{Function,Nothing}=nothing,
         kwargs...) where {B<:Basis,T<:Operator{B,B}}
@@ -188,11 +188,11 @@ function master_bloch_redfield(tspan::Vector{Float64},
     L_ = isa(L, SparseSuperOpType) ? SparseOperator(basis_comp, L.data) : DenseOperator(basis_comp, L.data)
 
     # Derivative function
-    dmaster_br_(t::Float64, rho::T2, drho::T2) where T2<:Ket = dmaster_br(drho, rho, L_)
+    dmaster_br_(t, rho::T2, drho::T2) where T2<:Ket = dmaster_br(drho, rho, L_)
 
     return integrate_br(tspan, dmaster_br_, rho0_eb, transf_op, inv_transf_op, fout; kwargs...)
 end
-master_bloch_redfield(tspan::Vector{Float64}, psi::Ket, args...; kwargs...) = master_bloch_redfield(tspan::Vector{Float64}, dm(psi), args...; kwargs...)
+master_bloch_redfield(tspan, psi::Ket, args...; kwargs...) = master_bloch_redfield(tspan, dm(psi), args...; kwargs...)
 
 # Derivative ∂ₜρ = Lρ
 function dmaster_br(drho::T, rho::T, L::DataOperator{B,B}) where {B<:Basis,T<:Ket{B}}
@@ -200,7 +200,7 @@ function dmaster_br(drho::T, rho::T, L::DataOperator{B,B}) where {B<:Basis,T<:Ke
 end
 
 # Integrate if there is no fout specified
-function integrate_br(tspan::Vector{Float64}, dmaster_br::Function, rho::T,
+function integrate_br(tspan, dmaster_br::Function, rho::T,
                 transf_op::T2, inv_transf_op::T2, ::Nothing;
                 kwargs...) where {T<:Ket,T2<:Operator}
     # Pre-allocate for in-place back-transformation from eigenbasis
@@ -209,7 +209,7 @@ function integrate_br(tspan::Vector{Float64}, dmaster_br::Function, rho::T,
     tmp2 = copy(transf_op)
 
     # Define fout
-    function fout(t::Float64, rho::T)
+    function fout(t, rho::T)
         tmp.data[:] = rho.data
         QuantumOpticsBase.mul!(tmp2,transf_op,tmp)
         QuantumOpticsBase.mul!(rho_out,tmp2,inv_transf_op)
@@ -220,7 +220,7 @@ function integrate_br(tspan::Vector{Float64}, dmaster_br::Function, rho::T,
 end
 
 # Integrate with given fout
-function integrate_br(tspan::Vector{Float64}, dmaster_br::Function, rho::T,
+function integrate_br(tspan, dmaster_br::Function, rho::T,
                 transf_op::T2, inv_transf_op::T2, fout::Function;
                 kwargs...) where {T<:Ket,T2<:Operator}
     # Pre-allocate for in-place back-transformation from eigenbasis
@@ -228,13 +228,15 @@ function integrate_br(tspan::Vector{Float64}, dmaster_br::Function, rho::T,
     tmp = copy(transf_op)
     tmp2 = copy(transf_op)
 
+    tspan_ = convert(Vector{float(eltype(tspan))}, tspan)
+
     # Perform back-transfomration before calling fout
-    function fout_(t::Float64, rho::T)
+    function fout_(t, rho::T)
         tmp.data[:] = rho.data
         QuantumOpticsBase.mul!(tmp2,transf_op,tmp)
         QuantumOpticsBase.mul!(rho_out,tmp2,inv_transf_op)
         return fout(t, rho_out)
     end
 
-    return integrate(tspan, dmaster_br, copy(rho.data), rho, copy(rho), fout_; kwargs...)
+    return integrate(tspan_, dmaster_br, copy(rho.data), rho, copy(rho), fout_; kwargs...)
 end

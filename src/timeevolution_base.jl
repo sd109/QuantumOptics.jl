@@ -6,12 +6,12 @@ import OrdinaryDiffEq, DiffEqCallbacks
 function recast! end
 
 """
-    integrate(tspan::Vector{Float64}, df::Function, x0::Vector{ComplexF64},
+    integrate(tspan, df::Function, x0::Vector{ComplexF64},
             state::T, dstate::T, fout::Function; kwargs...)
 
 Integrate using OrdinaryDiffEq
 """
-function integrate(tspan::Vector{Float64}, df::Function, x0::X,
+function integrate(tspan, df::Function, x0::X,
             state::T, dstate::T, fout::Function;
             alg::OrdinaryDiffEq.OrdinaryDiffEqAlgorithm = OrdinaryDiffEq.DP5(),
             steady_state = false, tol = 1e-3, save_everystep = false,
@@ -23,14 +23,14 @@ function integrate(tspan::Vector{Float64}, df::Function, x0::X,
         df(t, state, dstate)
         recast!(dstate, dx)
     end
-    function fout_(x, t::Float64, integrator)
+    function fout_(x, t, integrator)
         recast!(x, state)
         fout(t, state)
     end
 
     out_type = pure_inference(fout, Tuple{eltype(tspan),typeof(state)})
 
-    out = DiffEqCallbacks.SavedValues(Float64,out_type)
+    out = DiffEqCallbacks.SavedValues(eltype(tspan),out_type)
 
     scb = DiffEqCallbacks.SavingCallback(fout_,out,saveat=tspan,
                                          save_everystep=save_everystep,
@@ -65,9 +65,9 @@ function integrate(tspan::Vector{Float64}, df::Function, x0::X,
     out.t,out.saveval
 end
 
-function integrate(tspan::Vector{Float64}, df::Function, x0::X,
+function integrate(tspan, df::Function, x0::X,
             state::T, dstate::T, ::Nothing; kwargs...) where {T,X}
-    function fout(t::Float64, state::T)
+    function fout(t, state::T)
         copy(state)
     end
     integrate(tspan, df, x0, state, dstate, fout; kwargs...)

@@ -24,7 +24,7 @@ function schroedinger(tspan, psi0::T, H::AbstractOperator{B,B}, Hs::Vector;
                 normalize_state::Bool=false,
                 calback=nothing,
                 kwargs...) where {B<:Basis,T<:Ket{B}}
-    tspan_ = convert(Vector{Float64}, tspan)
+    tspan_ = convert(Vector{float(eltype(tspan))}, tspan)
 
     n = length(Hs)
     dstate = copy(psi0)
@@ -36,12 +36,12 @@ function schroedinger(tspan, psi0::T, H::AbstractOperator{B,B}, Hs::Vector;
         @assert isa(h, AbstractOperator{B,B})
     end
 
-    dschroedinger_determ(t::Float64, psi::T, dpsi::T) = dschroedinger(psi, H, dpsi)
+    dschroedinger_determ(t, psi::T, dpsi::T) = dschroedinger(psi, H, dpsi)
     dschroedinger_stoch(dx::DiffArray,
-            t::Float64, psi::T, dpsi::T, n::Int) = dschroedinger_stochastic(dx, psi, Hs, dpsi, n)
+            t, psi::T, dpsi::T, n::Int) = dschroedinger_stochastic(dx, psi, Hs, dpsi, n)
 
     if normalize_state
-        norm_func(u::Vector, t::Float64, integrator) = normalize!(u)
+        norm_func(u::Vector, t, integrator) = normalize!(u)
         ncb = DiffEqCallbacks.FunctionCallingCallback(norm_func;
                  func_everystep=true,
                  func_start=false)
@@ -85,7 +85,7 @@ function schroedinger_dynamic(tspan, psi0::T, fdeterm::Function, fstoch::Functio
                 fout::Union{Function,Nothing}=nothing, noise_processes::Int=0,
                 normalize_state::Bool=false,
                 kwargs...) where T<:Ket
-    tspan_ = convert(Vector{Float64}, tspan)
+    tspan_ = convert(Vector{float(eltype(tspan))}, tspan)
 
     if noise_processes == 0
         fs_out = fstoch(0.0, psi0)
@@ -98,13 +98,13 @@ function schroedinger_dynamic(tspan, psi0::T, fdeterm::Function, fstoch::Functio
     x0 = psi0.data
     state = copy(psi0)
 
-    dschroedinger_determ(t::Float64, psi::T, dpsi::T) = dschroedinger_dynamic(t, psi, fdeterm, dpsi)
+    dschroedinger_determ(t, psi::T, dpsi::T) = dschroedinger_dynamic(t, psi, fdeterm, dpsi)
     dschroedinger_stoch(dx::DiffArray,
-            t::Float64, psi::T, dpsi::T, n::Int) =
+            t, psi::T, dpsi::T, n::Int) =
         dschroedinger_stochastic(dx, t, psi, fstoch, dpsi, n)
 
     if normalize_state
-        norm_func(u::Vector, t::Float64, integrator) = normalize!(u)
+        norm_func(u::Vector, t, integrator) = normalize!(u)
         ncb = DiffEqCallbacks.FunctionCallingCallback(norm_func;
                  func_everystep=true,
                  func_start=false)
@@ -134,7 +134,7 @@ function dschroedinger_stochastic(dx::Matrix, psi::T1, Hs::Vector{T2},
     end
 end
 function dschroedinger_stochastic(dx::DiffArray,
-            t::Float64, psi::T, f::Function, dpsi::T, n::Int) where T<:Ket
+            t, psi::T, f::Function, dpsi::T, n::Int) where T<:Ket
     ops = f(t, psi)
     if QO_CHECKS[]
         @inbounds for h=ops

@@ -15,8 +15,8 @@ Integrate Schroedinger equation.
 function schroedinger(tspan, psi0::T, H::AbstractOperator{B,B};
                 fout::Union{Function,Nothing}=nothing,
                 kwargs...) where {B<:Basis,T<:StateVector{B}}
-    tspan_ = convert(Vector{Float64}, tspan)
-    dschroedinger_(t::Float64, psi::T, dpsi::T) = dschroedinger(psi, H, dpsi)
+    tspan_ = convert(Vector{float(eltype(tspan))}, tspan)
+    dschroedinger_(t, psi::T, dpsi::T) = dschroedinger(psi, H, dpsi)
     x0 = psi0.data
     state = T(psi0.basis, psi0.data)
     dstate = T(psi0.basis, psi0.data)
@@ -41,8 +41,8 @@ Integrate time-dependent Schroedinger equation.
 function schroedinger_dynamic(tspan, psi0::T, f::Function;
                 fout::Union{Function,Nothing}=nothing,
                 kwargs...) where T<:StateVector
-    tspan_ = convert(Vector{Float64}, tspan)
-    dschroedinger_(t::Float64, psi::T, dpsi::T) = dschroedinger_dynamic(t, psi, f, dpsi)
+    tspan_ = convert(Vector{float(eltype(tspan))}, tspan)
+    dschroedinger_(t, psi::T, dpsi::T) = dschroedinger_dynamic(t, psi, f, dpsi)
     x0 = psi0.data
     state = Ket(psi0.basis, psi0.data)
     dstate = Ket(psi0.basis, psi0.data)
@@ -65,7 +65,7 @@ function dschroedinger(psi::Bra{B}, H::AbstractOperator{B,B}, dpsi::Bra{B}) wher
 end
 
 
-function dschroedinger_dynamic(t::Float64, psi0::T, f::Function, dpsi::T) where T<:StateVector
+function dschroedinger_dynamic(t, psi0::T, f::Function, dpsi::T) where T<:StateVector
     H = f(t, psi0)
     dschroedinger(psi0, H, dpsi)
 end

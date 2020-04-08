@@ -42,12 +42,12 @@ function master(tspan, rho0::T, H::AbstractOperator{B,B},
 
     n = length(C)
 
-    dmaster_stoch(dx::DiffArray, t::Float64, rho::T, drho::T, n::Int) =
+    dmaster_stoch(dx::DiffArray, t, rho::T, drho::T, n::Int) =
             dmaster_stochastic(dx, rho, C, Cdagger, drho, n)
 
     isreducible = check_master(rho0, H, J, Jdagger, rates) && check_master_stoch(rho0, C, Cdagger)
     if !isreducible
-        dmaster_h_determ(t::Float64, rho::T, drho::T) =
+        dmaster_h_determ(t, rho::T, drho::T) =
             dmaster_h(rho, H, rates, J, Jdagger, drho, tmp)
         integrate_master_stoch(tspan, dmaster_h_determ, dmaster_stoch, rho0, fout, n; kwargs...)
     else
@@ -67,7 +67,7 @@ function master(tspan, rho0::T, H::AbstractOperator{B,B},
         end
         Hnhdagger = dagger(Hnh)
 
-        dmaster_nh_determ(t::Float64, rho::T, drho::T) =
+        dmaster_nh_determ(t, rho::T, drho::T) =
             dmaster_nh(rho, Hnh, Hnhdagger, rates, J, Jdagger, drho, tmp)
         integrate_master_stoch(tspan, dmaster_nh_determ, dmaster_stoch, rho0, fout, n; kwargs...)
     end
@@ -103,7 +103,7 @@ dynamic Hamiltonian and J.
         number if you want to avoid an initial calculation of function outputs!
 * `kwargs...`: Further arguments are passed on to the ode solver.
 """
-function master_dynamic(tspan::Vector{Float64}, rho0::T, fdeterm::Function, fstoch::Function;
+function master_dynamic(tspan, rho0::T, fdeterm::Function, fstoch::Function;
                 rates::DecayRates=nothing,
                 fout::Union{Function,Nothing}=nothing,
                 noise_processes::Int=0,
@@ -118,12 +118,12 @@ function master_dynamic(tspan::Vector{Float64}, rho0::T, fdeterm::Function, fsto
         n = noise_processes
     end
 
-    dmaster_determ(t::Float64, rho::T, drho::T) = dmaster_h_dynamic(t, rho, fdeterm, rates, drho, tmp)
-    dmaster_stoch(dx::DiffArray, t::Float64, rho::T, drho::T, n::Int) =
+    dmaster_determ(t, rho::T, drho::T) = dmaster_h_dynamic(t, rho, fdeterm, rates, drho, tmp)
+    dmaster_stoch(dx::DiffArray, t, rho::T, drho::T, n::Int) =
         dmaster_stoch_dynamic(dx, t, rho, fstoch, drho, n)
     integrate_master_stoch(tspan, dmaster_determ, dmaster_stoch, rho0, fout, n; kwargs...)
 end
-master_dynamic(tspan::Vector{Float64}, psi0::Ket, args...; kwargs...) = master_dynamic(tspan, dm(psi0), args...; kwargs...)
+master_dynamic(tspan, psi0::Ket, args...; kwargs...) = master_dynamic(tspan, dm(psi0), args...; kwargs...)
 
 # Derivative functions
 function dmaster_stochastic(dx::Vector, rho::T,
@@ -145,7 +145,7 @@ function dmaster_stochastic(dx::Matrix, rho::T,
     end
 end
 
-function dmaster_stoch_dynamic(dx::DiffArray, t::Float64, rho::T,
+function dmaster_stoch_dynamic(dx::DiffArray, t, rho::T,
             f::Function, drho::T, n::Int) where {B<:Basis,T<:Operator{B,B}}
     result = f(t, rho)
     QO_CHECKS[] && @assert 2 == length(result)
@@ -158,7 +158,7 @@ function integrate_master_stoch(tspan, df::Function, dg::Function,
                         rho0::Operator, fout::Union{Nothing, Function},
                         n::Int;
                         kwargs...)
-    tspan_ = convert(Vector{Float64}, tspan)
+    tspan_ = convert(Vector{float(eltype(tspan))}, tspan)
     x0 = reshape(rho0.data, length(rho0))
     state = copy(rho0)
     dstate = copy(rho0)

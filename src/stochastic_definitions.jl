@@ -46,18 +46,18 @@ function homodyne_carmichael(H0::AbstractOperator, C::Vector{T}, theta::Vector{R
     X = C .* exp.(-1.0im .* theta) + dagger.(C) .* exp.(1.0im .* theta)
     CdagC = -0.5im .* dagger.(C) .* C
 
-    fstoch(t::Float64, psi::StateVector) = Hs
+    fstoch(t, psi::StateVector) = Hs
     if normalize_expect
         function H_nl_n(psi::StateVector)
             psi_n = normalize(psi)
             sum(expect(X[i], psi_n)*Hs[i] + CdagC[i] for i=1:n)
         end
-        fdeterm_n(t::Float64, psi::StateVector) = H0 + H_nl_n(psi)
+        fdeterm_n(t, psi::StateVector) = H0 + H_nl_n(psi)
         return fdeterm_n, fstoch
     else
         H_nl_un(psi::StateVector) =
             sum(expect(X[i], psi)*Hs[i] + CdagC[i] for i=1:n)
-        fdeterm_un(t::Float64, psi::StateVector) = H0 + H_nl_un(psi)
+        fdeterm_un(t, psi::StateVector) = H0 + H_nl_un(psi)
         return fdeterm_un, fstoch
     end
 end

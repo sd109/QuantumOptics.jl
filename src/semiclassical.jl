@@ -16,7 +16,7 @@ using ..timeevolution
 
 
 const QuantumState{B} = Union{Ket{B}, Operator{B,B}}
-const DecayRates = Union{Nothing, Vector{Float64}, Matrix{Float64}}
+const DecayRates = Union{Nothing, Vector, Matrix}
 
 """
 Semi-classical state.
@@ -74,8 +74,8 @@ Integrate time-dependent Schrödinger equation coupled to a classical system.
 function schroedinger_dynamic(tspan, state0::S, fquantum::Function, fclassical::Function;
                 fout::Union{Function,Nothing}=nothing,
                 kwargs...) where {B<:Basis,T<:Ket{B},S<:State{B,T}}
-    tspan_ = convert(Vector{Float64}, tspan)
-    dschroedinger_(t::Float64, state::S, dstate::S) = dschroedinger_dynamic(t, state, fquantum, fclassical, dstate)
+    tspan_ = convert(Vector{float(eltype(tspan))}, tspan)
+    dschroedinger_(t, state::S, dstate::S) = dschroedinger_dynamic(t, state, fquantum, fclassical, dstate)
     x0 = Vector{eltype(state0)}(undef, length(state0))
     recast!(state0, x0)
     state = copy(state0)
@@ -107,8 +107,8 @@ function master_dynamic(tspan, state0::State{B,T}, fquantum, fclassical;
                 fout::Union{Function,Nothing}=nothing,
                 tmp::T=copy(state0.quantum),
                 kwargs...) where {B<:Basis,T<:Operator{B,B}}
-    tspan_ = convert(Vector{Float64}, tspan)
-    function dmaster_(t::Float64, state::S, dstate::S) where {B<:Basis,T<:Operator{B,B},S<:State{B,T}}
+    tspan_ = convert(Vector{float(eltype(tspan))}, tspan)
+    function dmaster_(t, state::S, dstate::S) where {B<:Basis,T<:Operator{B,B},S<:State{B,T}}
         dmaster_h_dynamic(t, state, fquantum, fclassical, rates, dstate, tmp)
     end
     x0 = Vector{eltype(state0)}(undef, length(state0))
@@ -156,12 +156,12 @@ function mcwf_dynamic(tspan, psi0::State{B,T}, fquantum, fclassical, fjump_class
                 rates::DecayRates=nothing,
                 fout::Union{Function,Nothing}=nothing,
                 kwargs...) where {B<:Basis,T<:Ket{B}}
-    tspan_ = convert(Vector{Float64}, tspan)
+    tspan_ = convert(Vector{float(eltype(tspan))}, tspan)
     tmp=copy(psi0.quantum)
-    function dmcwf_(t::Float64, psi::S, dpsi::S) where {B<:Basis,T<:Ket{B},S<:State{B,T}}
+    function dmcwf_(t, psi::S, dpsi::S) where {B<:Basis,T<:Ket{B},S<:State{B,T}}
         dmcwf_h_dynamic(t, psi, fquantum, fclassical, rates, dpsi, tmp)
     end
-    j_(rng, t::Float64, psi, psi_new) = jump_dynamic(rng, t, psi, fquantum, fclassical, fjump_classical, psi_new, rates)
+    j_(rng, t, psi, psi_new) = jump_dynamic(rng, t, psi, fquantum, fclassical, fjump_classical, psi_new, rates)
     x0 = Vector{eltype(psi0)}(undef, length(psi0))
     recast!(psi0, x0)
     psi = copy(psi0)
@@ -182,28 +182,28 @@ function recast!(x::C, state::State{B,T,C}) where {B<:Basis,T<:QuantumState{B},C
     copyto!(state.classical, 1, x, N+1, length(state.classical))
 end
 
-function dschroedinger_dynamic(t::Float64, state::State{B,T}, fquantum::Function,
+function dschroedinger_dynamic(t, state::State{B,T}, fquantum::Function,
             fclassical::Function, dstate::State{B,T}) where {B<:Basis,T<:Ket{B}}
     fquantum_(t, psi) = fquantum(t, state.quantum, state.classical)
     timeevolution.dschroedinger_dynamic(t, state.quantum, fquantum_, dstate.quantum)
     fclassical(t, state.quantum, state.classical, dstate.classical)
 end
 
-function dmaster_h_dynamic(t::Float64, state::State{B,T}, fquantum::Function,
+function dmaster_h_dynamic(t, state::State{B,T}, fquantum::Function,
             fclassical::Function, rates::DecayRates, dstate::State{B,T}, tmp::T) where {B<:Basis,T<:Operator{B,B}}
     fquantum_(t, rho) = fquantum(t, state.quantum, state.classical)
     timeevolution.dmaster_h_dynamic(t, state.quantum, fquantum_, rates, dstate.quantum, tmp)
     fclassical(t, state.quantum, state.classical, dstate.classical)
 end
 
-function dmcwf_h_dynamic(t::Float64, psi::T, fquantum::Function, fclassical::Function, rates::DecayRates,
+function dmcwf_h_dynamic(t, psi::T, fquantum::Function, fclassical::Function, rates::DecayRates,
                     dpsi::T, tmp::K) where {T,K}
     fquantum_(t, rho) = fquantum(t, psi.quantum, psi.classical)
     timeevolution.dmcwf_h_dynamic(t, psi.quantum, fquantum_, rates, dpsi.quantum, tmp)
     fclassical(t, psi.quantum, psi.classical, dpsi.classical)
 end
 
-function jump_dynamic(rng, t::Float64, psi::T, fquantum::Function, fclassical::Function, fjump_classical::Function, psi_new::T, rates::DecayRates) where T<:State
+function jump_dynamic(rng, t, psi::T, fquantum::Function, fclassical::Function, fjump_classical::Function, psi_new::T, rates::DecayRates) where T<:State
     result = fquantum(t, psi.quantum, psi.classical)
     QO_CHECKS[] && @assert 3 <= length(result) <= 4
     J = result[2]
@@ -225,7 +225,7 @@ function jump_callback(jumpfun::Function, seed, scb, save_before!::Function,
     rng = MersenneTwister(convert(UInt, seed))
     jumpnorm = Ref(rand(rng))
     n = length(psi0.quantum)
-    djumpnorm(x::Vector, t::Float64, integrator) = norm(x[1:n])^2 - (1-jumpnorm[])
+    djumpnorm(x::Vector, t, integrator) = norm(x[1:n])^2 - (1-jumpnorm[])
 
     function dojump(integrator)
         x = integrator.u

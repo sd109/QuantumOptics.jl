@@ -178,7 +178,7 @@ recast!(rho::Operator{B,B,T}, x::T) where {B<:Basis,T} = nothing
 
 function integrate_master(tspan, df::Function, rho0::T,
                         fout::Union{Nothing, Function}; kwargs...) where {B<:Basis,T<:Operator{B,B}}
-    tspan_ = convert(Vector{Float64}, tspan)
+    tspan_ = convert(Vector{float(eltype(tspan))}, tspan)
     x0 = rho0.data
     state = T(rho0.basis_l, rho0.basis_r, rho0.data)
     dstate = T(rho0.basis_l, rho0.basis_r, rho0.data)
@@ -282,7 +282,7 @@ function dmaster_nh(rho::T, Hnh::AbstractOperator{B,B}, Hnh_dagger::AbstractOper
     return drho
 end
 
-function dmaster_h_dynamic(t::Float64, rho::T, f::Function,
+function dmaster_h_dynamic(t, rho::T, f::Function,
                     rates::DecayRates,
                     drho::T, tmp::T) where {B<:Basis,T<:Operator{B,B}}
     result = f(t, rho)
@@ -297,7 +297,7 @@ function dmaster_h_dynamic(t::Float64, rho::T, f::Function,
     dmaster_h(rho, H, rates_, J, Jdagger, drho, tmp)
 end
 
-function dmaster_nh_dynamic(t::Float64, rho::T, f::Function,
+function dmaster_nh_dynamic(t, rho::T, f::Function,
                     rates::DecayRates,
                     drho::T, tmp::T) where {B<:Basis,T<:Operator{B,B}}
     result = f(t, rho)
