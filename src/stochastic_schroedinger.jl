@@ -41,7 +41,7 @@ function schroedinger(tspan, psi0::T, H::AbstractOperator{B,B}, Hs::Vector;
             t::Float64, psi::T, dpsi::T, n::Int) = dschroedinger_stochastic(dx, psi, Hs, dpsi, n)
 
     if normalize_state
-        norm_func(u::Vector{ComplexF64}, t::Float64, integrator) = normalize!(u)
+        norm_func(u::Vector, t::Float64, integrator) = normalize!(u)
         ncb = DiffEqCallbacks.FunctionCallingCallback(norm_func;
                  func_everystep=true,
                  func_start=false)
@@ -104,7 +104,7 @@ function schroedinger_dynamic(tspan, psi0::T, fdeterm::Function, fstoch::Functio
         dschroedinger_stochastic(dx, t, psi, fstoch, dpsi, n)
 
     if normalize_state
-        norm_func(u::Vector{ComplexF64}, t::Float64, integrator) = normalize!(u)
+        norm_func(u::Vector, t::Float64, integrator) = normalize!(u)
         ncb = DiffEqCallbacks.FunctionCallingCallback(norm_func;
                  func_everystep=true,
                  func_start=false)
@@ -120,11 +120,11 @@ end
 
 
 function dschroedinger_stochastic(dx::D, psi::T1, Hs::Vector{T2},
-            dpsi::T1, index::Int) where {D<:Vector{ComplexF64},B<:Basis,T1<:Ket{B},T2<:AbstractOperator{B,B}}
+            dpsi::T1, index::Int) where {D<:Vector,B<:Basis,T1<:Ket{B},T2<:AbstractOperator{B,B}}
     recast!(dx, dpsi)
     dschroedinger(psi, Hs[index], dpsi)
 end
-function dschroedinger_stochastic(dx::Array{ComplexF64, 2}, psi::T1, Hs::Vector{T2},
+function dschroedinger_stochastic(dx::Matrix, psi::T1, Hs::Vector{T2},
             dpsi::T1, n::Int) where {B<:Basis,T1<:Ket{B},T2<:AbstractOperator{B,B}}
     for i=1:n
         dx_i = @view dx[:, i]

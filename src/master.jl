@@ -1,4 +1,4 @@
-const DecayRates = Union{Vector{Float64}, Matrix{Float64}, Nothing}
+const DecayRates = Union{Vector, Matrix, Nothing}
 
 """
     timeevolution.master_h(tspan, rho0, H, J; <keyword arguments>)

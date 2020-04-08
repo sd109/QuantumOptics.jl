@@ -1,6 +1,6 @@
 import ...timeevolution: dmaster_h, dmaster_nh, dmaster_h_dynamic, check_master
 
-const DecayRates = Union{Vector{Float64}, Matrix{Float64}, Nothing}
+const DecayRates = Union{Vector, Matrix, Nothing}
 
 """
     stochastic.master(tspan, rho0, H, J, C; <keyword arguments>)
@@ -52,17 +52,17 @@ function master(tspan, rho0::T, H::AbstractOperator{B,B},
         integrate_master_stoch(tspan, dmaster_h_determ, dmaster_stoch, rho0, fout, n; kwargs...)
     else
         Hnh = copy(H)
-        if typeof(rates) == Matrix{Float64}
+        if isa(rates, Matrix)
             for i=1:length(J), j=1:length(J)
-                Hnh -= 0.5im*rates[i,j]*Jdagger[i]*J[j]
+                Hnh -= eltype(H)(0.5im*rates[i,j])*Jdagger[i]*J[j]
             end
-        elseif typeof(rates) == Vector{Float64}
+        elseif isa(rates, Vector)
             for i=1:length(J)
-                Hnh -= 0.5im*rates[i]*Jdagger[i]*J[i]
+                Hnh -= eltype(H)(0.5im*rates[i])*Jdagger[i]*J[i]
             end
         else
             for i=1:length(J)
-                Hnh -= 0.5im*Jdagger[i]*J[i]
+                Hnh -= eltype(H)(0.5im)*Jdagger[i]*J[i]
             end
         end
         Hnhdagger = dagger(Hnh)
@@ -126,20 +126,20 @@ end
 master_dynamic(tspan::Vector{Float64}, psi0::Ket, args...; kwargs...) = master_dynamic(tspan, dm(psi0), args...; kwargs...)
 
 # Derivative functions
-function dmaster_stochastic(dx::Vector{ComplexF64}, rho::T,
+function dmaster_stochastic(dx::Vector, rho::T,
             C::Vector, Cdagger::Vector, drho::T, ::Int) where {B<:Basis,T<:Operator{B,B}}
     recast!(dx, drho)
     QuantumOpticsBase.mul!(drho,C[1],rho)
-    QuantumOpticsBase.mul!(drho,rho,Cdagger[1],1,1)
+    QuantumOpticsBase.mul!(drho,rho,Cdagger[1],true,true)
     drho.data .-= tr(drho)*rho.data
 end
-function dmaster_stochastic(dx::Array{ComplexF64, 2}, rho::T,
+function dmaster_stochastic(dx::Matrix, rho::T,
             C::Vector, Cdagger::Vector, drho::T, n::Int) where {B<:Basis,T<:Operator{B,B}}
     for i=1:n
         dx_i = @view dx[:, i]
         recast!(dx_i, drho)
         QuantumOpticsBase.mul!(drho,C[i],rho)
-        QuantumOpticsBase.mul!(drho,rho,Cdagger[i],1,1)
+        QuantumOpticsBase.mul!(drho,rho,Cdagger[i],true,true)
         drho.data .-= tr(drho)*rho.data
         recast!(drho, dx_i)
     end

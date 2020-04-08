@@ -35,7 +35,7 @@ criterion specified in [`steadystate.master`](@ref).
 """
 function correlation(tspan::Vector{Float64}, rho0::Operator{B,B}, H::AbstractOperator{B,B}, J::Vector,
                      op1::AbstractOperator{B,B}, op2::AbstractOperator{B,B};
-                     rates::Union{Vector{Float64}, Matrix{Float64}, Nothing}=nothing,
+                     rates::Union{Vector, Matrix, Nothing}=nothing,
                      Jdagger::Vector=dagger.(J),
                      kwargs...) where B<:Basis
     function fout(t, rho)
@@ -48,8 +48,8 @@ end
 
 function correlation(rho0::Operator{B,B}, H::AbstractOperator{B,B}, J::Vector,
                      op1::AbstractOperator{B,B}, op2::AbstractOperator{B,B};
-                     tol::Float64=1e-4, h0=10.,
-                     rates::Union{Vector{Float64}, Matrix{Float64}, Nothing}=nothing,
+                     tol::Float64=1e-4,
+                     rates::Union{Vector, Matrix, Nothing}=nothing,
                      Jdagger::Vector=dagger.(J),
                      kwargs...) where B<:Basis
     op2rho0 = op2*rho0
@@ -57,7 +57,7 @@ function correlation(rho0::Operator{B,B}, H::AbstractOperator{B,B}, J::Vector,
     function fout(t, rho)
         expect(op1, rho)
     end
-    t,u = steadystate.master(H, J; rho0=op2rho0, tol=tol, h0=h0, fout=fout,
+    t,u = steadystate.master(H, J; rho0=op2rho0, tol=tol, fout=fout,
                        rates=rates, Jdagger=Jdagger, save_everystep=true,kwargs...)
 end
 
