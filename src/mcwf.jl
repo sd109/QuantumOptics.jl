@@ -246,6 +246,7 @@ function integrate_mcwf(dmcwf::Function, jumpfun::Function, tspan,
                         display_beforeevent=false, display_afterevent=false,
                         display_jumps=false,
                         save_everystep=false, callback=nothing,
+                        saveat=tspan,
                         alg=OrdinaryDiffEq.DP5(),
                         kwargs...) where T
 

@@ -14,7 +14,7 @@ Integrate using OrdinaryDiffEq
 function integrate(tspan, df::Function, x0::X,
             state::T, dstate::T, fout::Function;
             alg::OrdinaryDiffEq.OrdinaryDiffEqAlgorithm = OrdinaryDiffEq.DP5(),
-            steady_state = false, tol = 1e-3, save_everystep = false,
+            steady_state = false, tol = 1e-3, save_everystep = false, saveat=tspan,
             callback = nothing, kwargs...) where {T,X}
 
     function df_(dx::T, x::T, p, t) where T
@@ -32,7 +32,7 @@ function integrate(tspan, df::Function, x0::X,
 
     out = DiffEqCallbacks.SavedValues(eltype(tspan),out_type)
 
-    scb = DiffEqCallbacks.SavingCallback(fout_,out,saveat=tspan,
+    scb = DiffEqCallbacks.SavingCallback(fout_,out,saveat=saveat,
                                          save_everystep=save_everystep,
                                          save_start = false)
 
