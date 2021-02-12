@@ -18,15 +18,13 @@ See QuTiP's documentation (http://qutip.org/docs/latest/guide/dynamics/dynamics-
 function bloch_redfield_tensor(H::AbstractOperator, a_ops::Array; J=[], use_secular=true, secular_cutoff=0.1)
 
     # use the eigenbasis
-    H_evals, transf_mat = eigen(dense(H).data)
-    H_ekets = [Ket(H.basis_l, transf_mat[:, i]) for i in 1:length(H_evals)]::Array{Ket{typeof(H.basis_l), Array{ComplexF64, 1}}, 1}
+    H_evals, transf_mat = eigen(Array(H.data)) #Array call makes sure H is a dense array
+    H_ekets = [Ket(H.basis_l, transf_mat[:, i]) for i in 1:length(H_evals)]
 
     #Define function for transforming to Hamiltonian eigenbasis
     function to_Heb(op, U)
-        #Copy oper
-        oper = copy(op)
-        #Transform underlying array
-        oper.data = inv(U) * oper.data * U
+        oper = copy(op) #Aviod mutating input op
+        oper.data = inv(U) * oper.data * U #Transform underlying array
         return oper
     end
 
@@ -48,7 +46,7 @@ function bloch_redfield_tensor(H::AbstractOperator, a_ops::Array; J=[], use_secu
     #Transform interaction operators to Hamiltonian eigenbasis and warn if non-hermitian
     A = Array{ComplexF64}(undef, N, N, K)
     for k in 1:K
-        ishermitian(a_ops[k][1]) || @warn(nonhermitian_warning)
+        # ishermitian(a_ops[k][1]) || @warn(nonhermitian_warning)
         A[:, :, k] = to_Heb(a_ops[k][1], transf_mat).data
     end
 
@@ -56,8 +54,7 @@ function bloch_redfield_tensor(H::AbstractOperator, a_ops::Array; J=[], use_secu
     W = H_evals .- transpose(H_evals)
 
     #Array for spectral functions evaluated at transition frequencies
-    Jw = Array{ComplexF64}(undef, N, N, K)
-    # W_T = transpose(W)
+    Jw = Array{Float64}(undef, N, N, K)
     #Loop over all a_ops and calculate each spectral density at all transition frequencies
     for k in 1:K
         Jw[:, :, k] .= a_ops[k][2].(W)
@@ -82,16 +79,16 @@ function bloch_redfield_tensor(H::AbstractOperator, a_ops::Array; J=[], use_secu
         end
 
         """ Term 1 """
-        data[idx] += sum( A[a, c, :] .* A[d, b, :] .* (Jw[c, a, :] .+ Jw[d, b, :]) ) #Broadcasting over interaction operators
+        sum!(view(data, idx), @views A[a, c, :] .* A[d, b, :] .* (Jw[c, a, :] .+ Jw[d, b, :]) ) #Broadcasting over interaction operators
 
         """ Term 2 (b == d) """
         if b == d
-            data[a, b, c, d] -= sum( view(A, a, :, :) .* view(A, :, c, :) .* view(Jw, c, :, :) ) #Broadcasting over interaction operators and extra sum over n
+            data[idx] -= @views sum( A[a, :, :] .* A[:, c, :] .* Jw[c, :, :] ) #Broadcasting over interaction operators and extra sum over n
         end
 
         """ Term 3 (a == c) """
         if a == c
-            data[a, b, c, d] -= sum( view(A, d, :, :) .* view(A, :, b, :) .* view(Jw, d, :, :) ) #Broadcasting over interaction operators and extra sum over n
+            data[idx] -= @views sum( A[d, :, :] .* A[:, b, :] .* Jw[d, :, :] ) #Broadcasting over interaction operators and extra sum over n
         end
 
     end
